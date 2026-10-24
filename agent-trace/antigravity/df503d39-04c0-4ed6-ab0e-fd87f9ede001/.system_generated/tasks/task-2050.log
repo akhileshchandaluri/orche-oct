@@ -1,0 +1,12 @@
+Sandbox exit code: 0
+Sandbox output lines: 28
+y validation on output.csv...
+Validation Report for: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\sandbox_test\output.csv
+Result: PASS (Contract Compliant)
+Total rows: 518
+Status distribution: {'INCOMPLETE': 307, 'COMPLETE': 201, 'NOT_APPLICABLE': 10}
+Error count: 0
+Warning count: 0
+ALL 518 ROWS PASSED STRICT SCHEMA AND POLICY VALIDATION WITH ZERO ERRORS.
+
+Sandbox output.csv lines: 519

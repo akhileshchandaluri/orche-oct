@@ -1,0 +1,28 @@
+================================================================================
+ORCHESTRATE: GHOST DATA STILL EXISTS - FULL AUDIT PIPELINE
+================================================================================
+Dataset root:  D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\dataset
+Output target: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\output.csv
+Loaded 518 deletion requests to audit.
+Processed 100 / 518 requests...
+Processed 200 / 518 requests...
+Processed 300 / 518 requests...
+Processed 400 / 518 requests...
+Processed 500 / 518 requests...
+Processed 518 / 518 requests...
+
+Wrote 518 rows to D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\output.csv in 10.46 seconds.
+
+Summary Status Distribution:
+  COMPLETE       :  211 ( 40.7%)
+  INCOMPLETE     :  297 ( 57.3%)
+  NOT_APPLICABLE :   10 (  1.9%)
+
+Executing strict schema and policy validation on output.csv...
+Validation Report for: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\output.csv
+Result: PASS (Contract Compliant)
+Total rows: 518
+Status distribution: {'COMPLETE': 211, 'INCOMPLETE': 297, 'NOT_APPLICABLE': 10}
+Error count: 0
+Warning count: 0
+ALL 518 ROWS PASSED STRICT SCHEMA AND POLICY VALIDATION WITH ZERO ERRORS.

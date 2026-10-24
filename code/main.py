@@ -16,11 +16,16 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+import argparse
 from code.evaluation.schema_validator import validate_csv
 from code.prediction_engine import PredictionEngine
 
 
-def run_full_pipeline(dataset_dir: Path, output_file: Path) -> None:
+def run_full_pipeline(
+    dataset_dir: Path,
+    output_file: Path,
+    enable_groq: Optional[bool] = None,
+) -> None:
     start_time = time.time()
     print("================================================================================")
     print("ORCHESTRATE: GHOST DATA STILL EXISTS - FULL AUDIT PIPELINE")
@@ -38,8 +43,10 @@ def run_full_pipeline(dataset_dir: Path, output_file: Path) -> None:
 
     print(f"Loaded {len(requests)} deletion requests to audit.")
 
-    # Initialize modular offline engine
-    engine = PredictionEngine(dataset_dir=dataset_dir)
+    # Initialize modular hybrid engine
+    engine = PredictionEngine(dataset_dir=dataset_dir, enable_groq=enable_groq)
+    groq_status = "ENABLED (Selective Reasoning)" if engine.groq_reasoner.is_available() else "DISABLED / OFFLINE FALLBACK"
+    print(f"Groq Reasoning Assistant: {groq_status} (Model: {engine.groq_reasoner.model})")
 
     results = []
     status_counts = {"COMPLETE": 0, "INCOMPLETE": 0, "NOT_APPLICABLE": 0}
@@ -78,6 +85,13 @@ def run_full_pipeline(dataset_dir: Path, output_file: Path) -> None:
         pct = (count / len(results)) * 100
         print(f"  {status:15s}: {count:4d} ({pct:5.1f}%)")
 
+    # Report Groq reasoning metrics
+    metrics = engine.groq_reasoner.get_metrics_summary()
+    print("\nGroq Reasoning Assistant Metrics:")
+    print(f"  Calls: {metrics['total_calls']} (Successful: {metrics['successful_calls']}, Failed: {metrics['failed_calls']}, Fallbacks: {metrics['fallback_calls']})")
+    print(f"  Tokens: {metrics['total_tokens']} (Prompt: {metrics['total_prompt_tokens']}, Completion: {metrics['total_completion_tokens']})")
+    print(f"  Latency: {metrics['total_latency_seconds']}s total ({metrics['average_latency_seconds']}s avg)")
+
     # Validate output schema
     print("\nExecuting strict schema and policy validation on output.csv...")
     report = validate_csv(output_file, expected_rows=518)
@@ -92,6 +106,14 @@ def run_full_pipeline(dataset_dir: Path, output_file: Path) -> None:
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Ghost Data Still Exists Prediction Pipeline")
+    parser.add_argument("--disable-groq", action="store_true", help="Force disable Groq reasoning (100% offline deterministic)")
+    parser.add_argument("--groq", action="store_true", help="Enable Groq reasoning assistant")
+    args = parser.parse_args()
+
+    enable_groq = False if args.disable_groq else (True if args.groq else None)
+
     dataset_dir = PROJECT_ROOT / "dataset"
     output_file = PROJECT_ROOT / "output.csv"
-    run_full_pipeline(dataset_dir, output_file)
+    run_full_pipeline(dataset_dir, output_file, enable_groq=enable_groq)
+

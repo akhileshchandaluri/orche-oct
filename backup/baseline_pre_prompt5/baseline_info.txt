@@ -1,0 +1,11 @@
+Baseline Pre-Prompt-5 Snapshot
+Timestamp: 2026-10-25T03:37:00+05:30
+Status Accuracy: 100.00% (32/32)
+Exact-Row Accuracy: 65.62% (21/32)
+Step Precision: 99.45%
+Step Recall: 94.30%
+Step F1-Score: 96.81%
+Sequence Accuracy: 100.00%
+Unit Tests Passing: 38/38
+Scenario Tests Passing: 10/10
+Output Rows: 518 (Strict Valid)

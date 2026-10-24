@@ -1,0 +1,2 @@
+Frozen baseline before Prompt 6 submission audit.
+Public benchmark: 90.62% exact-row accuracy (29/32), 100% status accuracy, 98.96% step F1.

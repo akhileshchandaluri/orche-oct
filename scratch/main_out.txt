@@ -1,0 +1,290 @@
+============================================================
+Running Ghost Data Still Exists Evaluation Harness Suite
+============================================================
+
+1. Sample Output Schema Conformance:
+Validation Report for: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\dataset\sample_output.csv
+Result: PASS (Contract Compliant)
+Total rows: 32
+Status distribution: {'COMPLETE': 10, 'INCOMPLETE': 22}
+Error count: 0
+Warning count: 0
+
+2. Evaluator Harness Self-Check:
+### Benchmark Results (SANITY_CHECK)
+
+> [!NOTE]
+> **EVALUATOR HARNESS SELF-CHECK**:
+> - Mode: `SANITY_CHECK`
+> - Truth Cases: 32 | Predicted Cases: 32
+> - Missing Cases Penalized: 0 | Unexpected Cases: 0
+> - **IMPORTANT**: This run compares identical reference files as a self-test of evaluator mechanics. It does NOT represent prediction or model accuracy.
+
+| Metric | Score | Definition |
+| --- | --- | --- |
+| **Evaluated Reference Cases** | 32 | Total cases in reference ground-truth |
+| **Case-Level Status Accuracy** | 100.00% | Exact match of `deletion_status` across all truth cases |
+| **Full Row-Level Exact Accuracy** | 100.00% | Exact match of status AND entire ordered `steps_json` |
+| **Step Precision** | 100.00% | Correct predicted steps / total predicted steps |
+| **Step Recall** | 100.00% | Correct predicted steps / total reference steps |
+| **Step F1-Score** | 100.00% | Harmonic mean of step precision and recall |
+| **Sequence Accuracy** | 100.00% | Correct array ordering among cases with matching step sets |
+
+#### Field-Level Accuracies
+
+| Field | Accuracy | Description |
+| --- | --- | --- |
+| `deletion_status` | 100.00% | Correct assignment of `deletion_status` across aligned steps |
+| `evidence_id` | 100.00% | Correct assignment of `evidence_id` across aligned steps |
+| `operation` | 100.00% | Correct assignment of `operation` across aligned steps |
+| `phase` | 100.00% | Correct assignment of `phase` across aligned steps |
+| `resource_id` | 100.00% | Correct assignment of `resource_id` across aligned steps |
+| `state` | 100.00% | Correct assignment of `state` across aligned steps |
+| `system_id` | 100.00% | Correct assignment of `system_id` across aligned steps |
+
+#### Case-by-Case Breakdown
+
+| Case ID | Truth Status | Pred Status | Status Match | Row Match | Step F1 | Seq Match | Notes |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| `case_01` | COMPLETE | COMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_02` | COMPLETE | COMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_03` | COMPLETE | COMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_04` | COMPLETE | COMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_05` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_06` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_07` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_08` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_09` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_10` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_11` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_12` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_13` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_14` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_15` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_16` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_17` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_18` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_19` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_20` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_21` | COMPLETE | COMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_22` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_23` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_24` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_25` | COMPLETE | COMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_26` | COMPLETE | COMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_27` | COMPLETE | COMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_28` | COMPLETE | COMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_29` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_30` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_31` | COMPLETE | COMPLETE | PASS | PASS | 100.0% | PASS | - |
+| `case_32` | INCOMPLETE | INCOMPLETE | PASS | PASS | 100.0% | PASS | - |
+
+============================================================
+Executing Deliberate Fault-Injection Tests (Validator & Evaluator Hardening)
+============================================================
+  [PASS] Correctly caught: Invalid Header (Error: Invalid header ['wrong_id', 'wrong_status', 'steps']. Required exact header: ['case_id', 'deletion_status', 'steps_json'])
+  [PASS] Correctly caught: Invalid Deletion Status (Error: Invalid deletion_status 'MAYBE'. Must be one of ['COMPLETE', 'INCOMPLETE', 'NOT_APPLICABLE'])
+  [PASS] Correctly caught: NOT_APPLICABLE with non-empty steps (Error: NOT_APPLICABLE must have an empty steps array [], found 1 steps)
+  [PASS] Correctly caught: State mismatch with operation (Error: Operation 'REPORT_REMAINING_RECORD' requires state 'PRESENT', got 'ABSENT')
+  [PASS] Correctly caught: Inverted step ordering (Verification before Finding) (Error: Steps are not properly sorted by (phase, operation, system_id, resource_id))
+  [PASS] Correctly caught: INCOMPLETE proposed remediation with non-empty evidence_id (Error: Proposed future REMEDIATION steps in INCOMPLETE cases must use empty evidence_id (''), got 'evidence_01')
+  [PASS] Correctly caught: Duplicate case IDs (Error: Duplicate case_id 'case_01' at row 2)
+  [PASS] Correctly caught: Non-integer step_no (Error: step_no must be integer, got str)
+Fault Injection Test Result: ALL FAULTS CAUGHT (100% PASS)
+
+============================================================
+3. Custom Edge-Case Scenarios Verification
+============================================================
+Total Scenarios Defined: 10
+Scenario Specification Validity: PASS (100% Conforming)
+
+============================================================
+4. Executing Scenarios against Production PredictionEngine
+============================================================
+Scenario Execution Status: COMPLETED (10/10 passed)
+  [PASS] scenario_01_non_deletion: Non-Deletion Intent -> Status: NOT_APPLICABLE
+  [PASS] scenario_02_historical_identity: Historical Identity Resolution -> Status: INCOMPLETE
+  [PASS] scenario_03_secondary_system: Secondary System Record Remnant -> Status: INCOMPLETE
+  [PASS] scenario_04_active_data_flow: Recreation Hazard (Active Data Flow) -> Status: INCOMPLETE
+  [PASS] scenario_05_backup_restore_risk: Recreation Hazard (Backup Restore Risk) -> Status: INCOMPLETE
+  [PASS] scenario_06_policy_retention: Policy-Mandated Retention -> Status: INCOMPLETE
+  [PASS] scenario_07_temporal_cutoff: Temporal Cutoff Enforcement -> Status: COMPLETE
+  [PASS] scenario_08_multilingual_intent: Multilingual Intent Classification -> Status: COMPLETE
+  [PASS] scenario_09_replica_drift: Conflicting Evidence (Replica Drift) -> Status: INCOMPLETE
+  [PASS] scenario_10_prompt_injection: Adversarial Prompt Injection Defense -> Status: INCOMPLETE
+
+============================================================
+5. Representative Sample Benchmark (32 Public Reference Cases)
+============================================================
+Candidate Schema Conformance: PASS
+Status Accuracy:    100.00%
+Exact Row Accuracy: 90.62%
+Step Precision:     99.48%
+Step Recall:        98.45%
+Step F1-Score:      98.96%
+Sequence Accuracy:  100.00%
+Traceback (most recent call last):
+  File "D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\code\evaluation\main.py", line 405, in <module>
+    sys.exit(main())
+  File "D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\code\evaluation\main.py", line 390, in main
+    generate_evaluation_report(
+  File "D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\code\evaluation\main.py", line 260, in generate_evaluation_report
+    f"- **Exact Row Accuracy**: {model_bench_rep.row_level_accuracy * 100:.2f}% ({sum(1 for c in model_bench_rep.case_results if c.row_match)}/{model_bench_rep.total_truth_cases})",
+  File "D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\code\evaluation\main.py", line 260, in <genexpr>
+    f"- **Exact Row Accuracy**: {model_bench_rep.row_level_accuracy * 100:.2f}% ({sum(1 for c in model_bench_rep.case_results if c.row_match)}/{model_bench_rep.total_truth_cases})",
+AttributeError: 'CaseEvaluation' object has no attribute 'row_match'
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.
+-> Cannot close object; pdfium library is destroyed. This may cause a memory leak.

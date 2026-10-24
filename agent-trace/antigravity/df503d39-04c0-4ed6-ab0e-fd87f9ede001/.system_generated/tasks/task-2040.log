@@ -1,0 +1,6 @@
+Successfully scheduled one-shot timer.
+Expected to fire at: 2026-10-25T00:47:09+05:30
+Prompt: Check background task status
+Early Termination: never
+
+[2026-10-25T00:47:09+05:30] Timer fired.

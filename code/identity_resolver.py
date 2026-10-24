@@ -73,6 +73,8 @@ class IdentityResolver:
         self.dataset_dir = Path(dataset_dir)
         self.users_by_id: Dict[str, UserProfile] = {}
         self.email_to_user_id: Dict[str, str] = {}
+        self.current_email_to_user_id: Dict[str, str] = {}
+        self.historical_email_to_user_ids: Dict[str, Set[str]] = {}
         self.phone_to_user_id: Dict[str, str] = {}
         self.hash_to_user_id: Dict[str, str] = {}
         self._load_identities()
@@ -104,7 +106,9 @@ class IdentityResolver:
                 self.users_by_id[uid] = profile
 
                 if email:
-                    self.email_to_user_id[email.lower()] = uid
+                    clean_em = email.lower()
+                    self.email_to_user_id[clean_em] = uid
+                    self.current_email_to_user_id[clean_em] = uid
                 if phone:
                     self.phone_to_user_id[phone] = uid
                 if email_hash:
@@ -149,29 +153,81 @@ class IdentityResolver:
 
                 if field_name == "email":
                     if old_val:
+                        clean_old = old_val.lower()
                         profile.historical_emails.add(old_val)
-                        self.email_to_user_id[old_val.lower()] = uid
+                        if clean_old not in self.historical_email_to_user_ids:
+                            self.historical_email_to_user_ids[clean_old] = set()
+                        self.historical_email_to_user_ids[clean_old].add(uid)
+                        # Do not overwrite current email ownership if already claimed by active user
+                        if clean_old not in self.current_email_to_user_id:
+                            self.email_to_user_id[clean_old] = uid
                     if new_val:
-                        self.email_to_user_id[new_val.lower()] = uid
+                        clean_new = new_val.lower()
+                        if clean_new not in self.current_email_to_user_id:
+                            self.email_to_user_id[clean_new] = uid
                 elif field_name == "phone":
                     if old_val:
                         profile.historical_phones.add(old_val)
-                        self.phone_to_user_id[old_val] = uid
+                        if old_val not in self.phone_to_user_id:
+                            self.phone_to_user_id[old_val] = uid
                     if new_val:
-                        self.phone_to_user_id[new_val] = uid
+                        if new_val not in self.phone_to_user_id:
+                            self.phone_to_user_id[new_val] = uid
                 elif field_name == "email_hash":
                     if old_val:
+                        clean_h = old_val.lower()
                         profile.historical_hashes.add(old_val)
-                        self.hash_to_user_id[old_val.lower()] = uid
+                        if clean_h not in self.hash_to_user_id:
+                            self.hash_to_user_id[clean_h] = uid
                     if new_val:
-                        self.hash_to_user_id[new_val.lower()] = uid
+                        clean_nh = new_val.lower()
+                        if clean_nh not in self.hash_to_user_id:
+                            self.hash_to_user_id[clean_nh] = uid
 
-    def resolve_by_email(self, email: str) -> Optional[UserProfile]:
-        """Resolve a user profile given a current or historical email."""
+    def resolve_by_email(self, email: str, as_of_time: Optional[str] = None) -> Optional[UserProfile]:
+        """Resolve a user profile given a current or historical email.
+        
+        Preserves historical ownership without silently reassigning recycled emails.
+        If identity cannot be resolved confidently, returns None rather than guessing.
+        """
         clean_email = email.strip().lower()
+        if not clean_email:
+            return None
+
+        # 1. Check current primary active identities
+        uid = self.current_email_to_user_id.get(clean_email)
+        if uid:
+            return self.users_by_id.get(uid)
+
+        # 2. Check historical email ownership
+        hist_uids = self.historical_email_to_user_ids.get(clean_email, set())
+        if len(hist_uids) == 1:
+            return self.users_by_id.get(next(iter(hist_uids)))
+        elif len(hist_uids) > 1:
+            # Ambiguous: historical email associated with multiple users
+            if as_of_time:
+                # Find the user whose audit link event was active around as_of_time
+                candidates: List[Tuple[str, str]] = []
+                for cand_uid in hist_uids:
+                    cand_prof = self.users_by_id.get(cand_uid)
+                    if cand_prof:
+                        for l in cand_prof.audit_links:
+                            if l.field_name == "email" and (l.old_value.lower() == clean_email or l.new_value.lower() == clean_email):
+                                candidates.append((cand_uid, l.event_time))
+                if candidates:
+                    # Sort by event_time up to as_of_time
+                    valid_cands = [c for c in candidates if c[1] <= as_of_time]
+                    if valid_cands:
+                        best_uid = max(valid_cands, key=lambda c: c[1])[0]
+                        return self.users_by_id.get(best_uid)
+            # Cannot resolve confidently: do not guess another user's records
+            return None
+
+        # 3. Fallback to generic email index if unambiguously registered
         uid = self.email_to_user_id.get(clean_email)
         if uid:
             return self.users_by_id.get(uid)
+
         return None
 
     def resolve_by_user_id(self, user_id: str) -> Optional[UserProfile]:

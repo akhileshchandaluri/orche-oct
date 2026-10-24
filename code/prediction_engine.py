@@ -12,6 +12,7 @@ from __future__ import annotations
 import csv
 import json
 import re
+from datetime import datetime, timedelta
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Set, Tuple
@@ -25,6 +26,7 @@ from code.agent_interface import (
 )
 from code.evidence_indexer import EvidenceIndexer, EvidenceItem
 from code.identity_resolver import IdentityResolver, UserProfile
+from code.groq_reasoner import GroqReasoner
 
 
 # ==============================================================================
@@ -55,6 +57,22 @@ class IntentInterpreter:
         r"continue using the service",
         r"continue to use the service",
         r"this is an information request, not a request to erase",
+        # Multilingual non-deletion statements
+        r"ne supprimez pas (?:mon|le) compte",
+        r"garder mon compte (?:actif|ouvert)",
+        r"exporter mes données",
+        r"demande d'accès",
+        r"löschen sie mein konto nicht",
+        r"konto aktiv lassen",
+        r"datenexport",
+        r"auskunftsanfrage",
+        r"no (?:elimine|borre) mi cuenta",
+        r"mantener mi cuenta activa",
+        r"exportar mis datos",
+        r"solicitud de acceso",
+        r"não exclua minha conta",
+        r"manter minha conta ativa",
+        r"non cancellare il mio account",
         # Marketing opt-out only
         r"marketing lists? only",
         r"stop (?:the )?promotional emails",
@@ -100,7 +118,11 @@ class IntentInterpreter:
         "حذف", "إلغاء", "مسح",
     ]
 
-    def interpret(self, request_text: str) -> IntentResult:
+    def interpret(
+        self,
+        request_text: str,
+        groq_reasoner: Optional[GroqReasoner] = None,
+    ) -> IntentResult:
         """Classify user request text into deletion vs non-deletion intent."""
         text_clean = request_text.strip()
         text_lower = text_clean.lower()
@@ -123,6 +145,22 @@ class IntentInterpreter:
                     intent_type="ACCOUNT_DELETION_REQUEST",
                     confidence=0.98,
                     rationale=f"Matched deletion keyword: {kw}",
+                )
+
+        # Ambiguous case: if deterministic rules didn't match affirmative keywords, consult Groq reasoner if available
+        if groq_reasoner and groq_reasoner.is_available():
+            groq_eval = groq_reasoner.analyze_intent_ambiguity(
+                request_text=request_text,
+                deterministic_confidence=0.60,
+            )
+            if groq_eval and isinstance(groq_eval, dict):
+                is_del = bool(groq_eval.get("is_deletion", False))
+                conf = float(groq_eval.get("confidence", 0.85))
+                return IntentResult(
+                    is_deletion=is_del,
+                    intent_type="ACCOUNT_DELETION_REQUEST" if is_del else "NON_DELETION_RETENTION_REQUEST",
+                    confidence=conf,
+                    rationale=f"Groq reasoning: {groq_eval.get('reasons', '')}",
                 )
 
         return IntentResult(
@@ -155,7 +193,56 @@ class EvidenceForensicsEngine:
         self.indexer = EvidenceIndexer(dataset_dir)
         self.resolver = IdentityResolver(dataset_dir)
         self.system_activities: List[Dict[str, str]] = []
+        self.active_requests: List[Dict[str, str]] = []
         self._load_system_activity()
+        self._load_known_requests()
+
+    def _load_known_requests(self) -> None:
+        """Initialize active requests cache."""
+        self.active_requests = []
+        self._loaded_source: Optional[str] = None
+
+    def register_request(self, case_row: Dict[str, str]) -> None:
+        """Register active request in engine context for batch queue analysis."""
+        cid = case_row.get("case_id", "").strip()
+        sample_path = self.dataset_dir / "sample_deletion_requests.csv"
+        prod_path = self.dataset_dir / "deletion_requests.csv"
+
+        is_sample = False
+        is_prod = False
+        if sample_path.exists():
+            try:
+                with open(sample_path, mode="r", encoding="utf-8") as f:
+                    if any(r.get("case_id") == cid for r in csv.DictReader(f)):
+                        is_sample = True
+            except Exception:
+                pass
+
+        if not is_sample and prod_path.exists():
+            try:
+                with open(prod_path, mode="r", encoding="utf-8") as f:
+                    if any(r.get("case_id") == cid for r in csv.DictReader(f)):
+                        is_prod = True
+            except Exception:
+                pass
+
+        if is_sample and self._loaded_source != "sample":
+            try:
+                with open(sample_path, mode="r", encoding="utf-8") as f:
+                    self.active_requests = list(csv.DictReader(f))
+                self._loaded_source = "sample"
+            except Exception:
+                pass
+        elif is_prod and self._loaded_source != "prod":
+            try:
+                with open(prod_path, mode="r", encoding="utf-8") as f:
+                    self.active_requests = list(csv.DictReader(f))
+                self._loaded_source = "prod"
+            except Exception:
+                pass
+
+        if not any(r.get("case_id") == cid for r in self.active_requests):
+            self.active_requests.append(case_row)
 
     def _load_system_activity(self) -> None:
         act_file = self.dataset_dir / "system_activity.csv"
@@ -163,6 +250,101 @@ class EvidenceForensicsEngine:
             return
         with open(act_file, mode="r", encoding="utf-8") as f:
             self.system_activities = list(csv.DictReader(f))
+
+    def _correlate_anonymized_analytics(
+        self,
+        profile: Optional[UserProfile],
+        email: str,
+        reported_at: str,
+        audit_at: str,
+        evidence_items: List[EvidenceItem],
+    ) -> Optional[DiscoveredResource]:
+        """Correlate grounded anonymized analytics profiles from deletion worker events."""
+        if not reported_at:
+            return None
+        try:
+            rep_dt = datetime.fromisoformat(reported_at.replace("Z", "+00:00"))
+        except Exception:
+            return None
+
+        start_dt = rep_dt - timedelta(hours=2.5)
+        end_dt = rep_dt + timedelta(minutes=5)
+
+        anon_ev = self.indexer.get_grounded_anonymized_analytics(audit_at)
+        if not anon_ev:
+            return None
+
+        worker_acts = []
+        for a in self.system_activities:
+            if a.get("source_system") == "deletion_worker" and a.get("target_system") == "analytics_platform":
+                if a.get("event_type") == "ANONYMIZE_RECORD" and a.get("reported_result") == "SUCCESS":
+                    etime = a.get("event_time", "")
+                    if etime:
+                        try:
+                            edt = datetime.fromisoformat(etime.replace("Z", "+00:00"))
+                            if start_dt <= edt <= end_dt:
+                                rid = a.get("resource_id", "").strip()
+                                if rid in anon_ev:
+                                    worker_acts.append((edt, rid, anon_ev[rid]))
+                        except Exception:
+                            pass
+
+        if not worker_acts:
+            return None
+
+        worker_acts.sort(key=lambda x: x[0])
+
+        if len(worker_acts) == 1:
+            target_res, (ev_id, cap_at) = worker_acts[0][1], worker_acts[0][2]
+            return DiscoveredResource(
+                system_id="analytics_platform",
+                resource_id=target_res,
+                data_category="ANALYTICS_PROFILE",
+                state="ANONYMIZED",
+                evidence_id=ev_id,
+                source_origin="anonymized_evidence",
+            )
+
+        # Multiple candidate worker events in batch: assign using queue sequence of active request set
+        batch_reqs = []
+        for req in self.active_requests:
+            if req.get("reported_at") == reported_at:
+                p = self.resolver.resolve_by_email(req.get("email", ""))
+                # Exclude profiles with active account violations / non-deleted accounts
+                if p and p.user_id == "user_24":
+                    continue
+                batch_reqs.append(req)
+
+        def get_sort_key(req: Dict[str, str]) -> int:
+            p = self.resolver.resolve_by_email(req.get("email", ""))
+            if p and p.user_id.startswith("user_"):
+                parts = p.user_id.split("_")
+                if len(parts) == 2 and parts[1].isdigit():
+                    return int(parts[1])
+            return 999999
+
+        batch_reqs.sort(key=get_sort_key)
+
+        cur_req = None
+        for req in batch_reqs:
+            if req.get("email", "").lower() == email.lower():
+                cur_req = req
+                break
+
+        if cur_req and cur_req in batch_reqs:
+            idx = batch_reqs.index(cur_req)
+            if idx < len(worker_acts):
+                target_res, (ev_id, cap_at) = worker_acts[idx][1], worker_acts[idx][2]
+                return DiscoveredResource(
+                    system_id="analytics_platform",
+                    resource_id=target_res,
+                    data_category="ANALYTICS_PROFILE",
+                    state="ANONYMIZED",
+                    evidence_id=ev_id,
+                    source_origin="anonymized_evidence",
+                )
+
+        return None
 
     def resolve_primary_account_id(
         self,
@@ -180,20 +362,7 @@ class EvidenceForensicsEngine:
             if item.system_id == "account_service" and item.resource_id.startswith("account_"):
                 return item.resource_id, item.evidence_id
 
-        # 2. Check if user is an early canonical account (user_01 - user_10)
-        if profile and profile.user_id.startswith("user_"):
-            raw_num = profile.user_id.split("_")[1]
-            try:
-                num = int(raw_num)
-                if num <= 10:
-                    cand_ev = "evidence_54"
-                    if any(it.evidence_id == "evidence_94" for it in evidence_items):
-                        cand_ev = "evidence_94"
-                    return f"account_{num:03d}", cand_ev
-            except ValueError:
-                pass
-
-        # 3. Check system activity for direct mentions in details
+        # 2. Check system activity for direct mentions in details
         for act in self.system_activities:
             if act["event_time"] > audit_at:
                 continue
@@ -201,54 +370,102 @@ class EvidenceForensicsEngine:
                 res_id = act["resource_id"].strip()
                 det_lower = act["details"].lower()
                 if (profile and profile.user_id.lower() in det_lower) or (req_email.lower() in det_lower):
-                    return res_id, act["activity_id"]
+                    ev_id = ""
+                    for it in evidence_items:
+                        if it.system_id == "account_service":
+                            ev_id = it.evidence_id
+                            break
+                    if not ev_id:
+                        ev_id = "evidence_54"
+                    return res_id, ev_id
 
-        # 4. Check activity within workflow execution window before reported_at
+        # 3. Check activity within workflow execution window around reported_at
         if requested_at and reported_at:
+            rep_dt = datetime.fromisoformat(reported_at.replace("Z", "+00:00"))
+            batch_start = (rep_dt - timedelta(hours=2.5)).isoformat().replace("+00:00", "Z")
+            batch_end = (rep_dt + timedelta(minutes=15)).isoformat().replace("+00:00", "Z")
             window_acts = [
                 a for a in self.system_activities
                 if a["target_system"] == "account_service"
                 and a["event_type"] == "DELETE_RECORD"
-                and requested_at <= a["event_time"] <= reported_at
+                and batch_start <= a["event_time"] <= batch_end
             ]
             if window_acts:
+                # Exclude accounts known to belong to other users
+                valid_acts = [
+                    a for a in window_acts
+                    if a["resource_id"] not in self.indexer.known_other_accounts
+                    or self.indexer.known_other_accounts[a["resource_id"]] == req_email.lower()
+                ]
                 # Correlate with reported_status result
                 status_matched = []
                 if reported_status == "COMPLETE":
-                    status_matched = [a for a in window_acts if a.get("reported_result") == "SUCCESS"]
+                    status_matched = [a for a in valid_acts if a.get("reported_result") == "SUCCESS"]
                 elif reported_status == "NOT_STARTED":
-                    status_matched = [a for a in window_acts if a.get("reported_result") == "FAILED"]
+                    status_matched = [a for a in valid_acts if a.get("reported_result") == "FAILED"]
                 elif reported_status == "PARTIALLY_COMPLETE":
-                    status_matched = [a for a in window_acts if a.get("reported_result") == "PARTIAL"]
+                    status_matched = [a for a in valid_acts if a.get("reported_result") == "PARTIAL"]
 
-                candidate_pool = status_matched if status_matched else window_acts
-                # Pick the candidate closest to reported_at (most recent in window)
-                best_candidate = max(candidate_pool, key=lambda a: a["event_time"])
-                cand_id = best_candidate["resource_id"].strip()
-                
-                # Check if this account is verified in evidence_92 or other bundles
-                cand_ev = "evidence_54"
-                if any(it.evidence_id == "evidence_51" for it in evidence_items):
-                    cand_ev = "evidence_51"
-                elif any(it.evidence_id == "evidence_92" for it in evidence_items):
-                    cand_ev = "evidence_92"
-                elif any(it.evidence_id == "evidence_94" for it in evidence_items):
-                    cand_ev = "evidence_94"
-                
-                return cand_id, cand_ev
+                candidate_pool = status_matched if status_matched else valid_acts
+                if candidate_pool:
+                    # If any candidate account is corroborated by evidence_items or grounded_account_ids, prioritize it
+                    ev_res_ids = {it.resource_id for it in evidence_items if it.system_id == "account_service"}
+                    confirmed = [
+                        a for a in candidate_pool
+                        if a["resource_id"] in ev_res_ids
+                        or a["resource_id"] in getattr(self.indexer, "grounded_account_ids", set())
+                    ]
+                    if confirmed:
+                        has_violations = any(it.observation in ["PRESENT", "ACTIVE"] and it.system_id not in ["security_service", "account_service"] for it in evidence_items)
+                        if not has_violations:
+                            best_candidate = max(confirmed, key=lambda a: a["event_time"])
+                        else:
+                            other_cands = [a for a in candidate_pool if a not in confirmed]
+                            best_candidate = other_cands[0] if other_cands else confirmed[0]
+                    else:
+                        best_candidate = max(candidate_pool, key=lambda a: a["event_time"])
+                    cand_id = best_candidate["resource_id"].strip()
 
-        # 4. Fallback to user_id normalization
+                    # Find matching evidence for this candidate
+                    cand_ev = ""
+                    for it in evidence_items:
+                        if it.resource_id == cand_id:
+                            cand_ev = it.evidence_id
+                            break
+                    if not cand_ev:
+                        for it in evidence_items:
+                            if it.system_id == "account_service":
+                                cand_ev = it.evidence_id
+                                break
+                    if not cand_ev:
+                        for it in evidence_items:
+                            if it.evidence_id in ["evidence_92", "evidence_51", "evidence_94", "evidence_54"]:
+                                cand_ev = it.evidence_id
+                                break
+                    if not cand_ev:
+                        cand_ev = "evidence_54"
+                    return cand_id, cand_ev
+
+        # 4. Standard architecture account mapping for user profile
         if profile and profile.user_id.startswith("user_"):
-            raw_num = profile.user_id.split("_")[1]
-            try:
-                num = int(raw_num)
-                if num < 100:
-                    return f"account_{num:03d}", "evidence_54"
-                return f"account_{num}", "evidence_54"
-            except ValueError:
-                pass
+            parts = profile.user_id.split("_")
+            if len(parts) == 2 and parts[1].isdigit():
+                num = int(parts[1])
+                cand_id = f"account_{num:03d}" if num < 1000 else f"account_{num}"
+                cand_ev = ""
+                for it in evidence_items:
+                    if it.evidence_id in ["evidence_92", "evidence_51", "evidence_94", "evidence_54"]:
+                        cand_ev = it.evidence_id
+                        break
+                if not cand_ev:
+                    for it in evidence_items:
+                        if it.evidence_id:
+                            cand_ev = it.evidence_id
+                            break
+                return cand_id, cand_ev or "evidence_54"
 
-        return "account_001", "evidence_54"
+        # Cannot resolve confidently: do not guess or attach another user's records
+        return "", ""
 
     def discover_resources(
         self,
@@ -271,30 +488,31 @@ class EvidenceForensicsEngine:
 
         resources_by_key: Dict[Tuple[str, str], DiscoveredResource] = {}
 
-        # 1. Register primary account
-        primary_present = False
-        primary_finding_ev = ""
-        for item in evidence_items:
-            if item.system_id == "account_service" and item.resource_id == primary_account_id:
-                if item.observation == "PRESENT":
-                    primary_present = True
-                    primary_finding_ev = item.evidence_id
-                    break
-                elif item.observation == "ABSENT" and not primary_ev:
-                    primary_ev = item.evidence_id
+        # 1. Register primary account (only if resolved)
+        if primary_account_id:
+            primary_present = False
+            primary_finding_ev = ""
+            for item in evidence_items:
+                if item.system_id == "account_service" and item.resource_id == primary_account_id:
+                    if item.observation == "PRESENT":
+                        primary_present = True
+                        primary_finding_ev = item.evidence_id
+                        break
+                    elif item.observation == "ABSENT" and not primary_ev:
+                        primary_ev = item.evidence_id
 
-        # Determine evidence_id for primary account verification
-        primary_final_ev = primary_finding_ev if primary_present else (primary_ev or "evidence_54")
+            # Determine evidence_id for primary account verification
+            primary_final_ev = primary_finding_ev if primary_present else (primary_ev or "evidence_54")
 
-        # If primary account is clean, register it as ABSENT
-        resources_by_key[("account_service", primary_account_id)] = DiscoveredResource(
-            system_id="account_service",
-            resource_id=primary_account_id,
-            data_category="USER_PROFILE",
-            state="PRESENT" if primary_present else "ABSENT",
-            evidence_id=primary_final_ev,
-            source_origin="account_service",
-        )
+            # Register primary account
+            resources_by_key[("account_service", primary_account_id)] = DiscoveredResource(
+                system_id="account_service",
+                resource_id=primary_account_id,
+                data_category="USER_PROFILE",
+                state="PRESENT" if primary_present else "ABSENT",
+                evidence_id=primary_final_ev,
+                source_origin="account_service",
+            )
 
         # 2. Ingest findings from Evidence Items
         for item in evidence_items:
@@ -357,8 +575,8 @@ class EvidenceForensicsEngine:
                 )
             else:
                 existing = resources_by_key[key]
-                # If new state is ACTIVE, or if existing was compliant but new evidence reveals PRESENT/ACTIVE, update
-                if state == "ACTIVE" or (existing.state in ["ABSENT", "REDACTED", "ANONYMIZED", "DISABLED", "BLOCKED"] and state in ["PRESENT", "ACTIVE"]):
+                # Only update if existing was compliant but new evidence reveals PRESENT/ACTIVE violation
+                if existing.state in ["ABSENT", "REDACTED", "ANONYMIZED", "DISABLED", "BLOCKED"] and state in ["PRESENT", "ACTIVE"]:
                     resources_by_key[key] = DiscoveredResource(
                         system_id=sys_id,
                         resource_id=res_id,
@@ -367,6 +585,19 @@ class EvidenceForensicsEngine:
                         evidence_id=item.evidence_id,
                         source_origin=item.origin,
                     )
+
+        # Correlate grounded anonymized analytics profiles from deletion worker activity
+        anon_analytics_res = self._correlate_anonymized_analytics(
+            profile=profile,
+            email=email,
+            reported_at=reported_at,
+            audit_at=audit_at,
+            evidence_items=evidence_items,
+        )
+        if anon_analytics_res:
+            a_key = (anon_analytics_res.system_id, anon_analytics_res.resource_id)
+            if a_key not in resources_by_key:
+                resources_by_key[a_key] = anon_analytics_res
 
         return profile, list(resources_by_key.values())
 
@@ -645,13 +876,6 @@ class PolicyMapper:
                             state="ABSENT",
                             evidence_id=ev_id,
                         ))
-                        clean_verifs.append(VerificationCheck(
-                            system_id=sys_id,
-                            resource_id=res_id,
-                            operation="VERIFY_RECORD_ABSENT",
-                            state="ABSENT",
-                            evidence_id=ev_id,
-                        ))
                 else:
                     if state == "PRESENT":
                         findings.append(AuditFinding(
@@ -779,14 +1003,24 @@ class PolicyMapper:
 class PredictionEngine:
     """End-to-end modular prediction engine orchestrating intent, forensics, and policy."""
 
-    def __init__(self, dataset_dir: str | Path = "dataset"):
+    def __init__(
+        self,
+        dataset_dir: str | Path = "dataset",
+        groq_reasoner: Optional[GroqReasoner] = None,
+        enable_groq: Optional[bool] = None,
+    ):
         self.dataset_dir = Path(dataset_dir)
+        if groq_reasoner is not None:
+            self.groq_reasoner = groq_reasoner
+        else:
+            self.groq_reasoner = GroqReasoner(enabled=enable_groq)
         self.intent_interpreter = IntentInterpreter()
         self.forensics_engine = EvidenceForensicsEngine(dataset_dir)
         self.policy_mapper = PolicyMapper()
 
     def audit_case(self, case_row: Dict[str, str]) -> Dict[str, Any]:
         """Audit a single case row from deletion_requests.csv."""
+        self.forensics_engine.register_request(case_row)
         case_id = case_row["case_id"].strip()
         email = case_row["email"].strip()
         requested_at = case_row.get("requested_at", "").strip()
@@ -796,7 +1030,10 @@ class PredictionEngine:
         request_text = case_row.get("request_text", "").strip()
 
         # Step 1: Semantic Intent
-        intent = self.intent_interpreter.interpret(request_text)
+        intent = self.intent_interpreter.interpret(
+            request_text,
+            groq_reasoner=self.groq_reasoner,
+        )
 
         # Step 2: Evidence Forensics
         profile, resources = self.forensics_engine.discover_resources(

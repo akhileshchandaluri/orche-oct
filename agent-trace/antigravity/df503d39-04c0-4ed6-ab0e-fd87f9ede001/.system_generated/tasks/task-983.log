@@ -1,0 +1,115 @@
+................
+----------------------------------------------------------------------
+Ran 16 tests in 0.711s
+
+OK
+Loaded 32 sample requests and 32 reference answers.
+Prediction Schema Validity: True (errors: 0)
+
+============================================================
+REPRESENTATIVE SAMPLE BENCHMARK METRICS:
+============================================================
+Total Cases:              32
+Status Accuracy:          1.0000 (100.0%)
+Exact Row Accuracy:       0.5000 (50.0%)
+Step Precision:           0.9278
+Step Recall:              0.8653
+Step F1 Score:            0.8954
+Sequence Accuracy:        1.0000 (100.0%)
+Schema Compliant:         True
+============================================================
+
+============================================================
+DETAILED MISMATCH ANALYSIS:
+============================================================
+Status Mismatches (0 / 32):
+
+Step Mismatches (16 / 32):
+
+--- case_03 ---
+  Missing from prediction (1):
+    - ('VERIFICATION', 'VERIFY_RECORD_ANONYMIZED', 'analytics_platform', 'analytics_9406', 'ANONYMIZED', 'evidence_94')
+
+--- case_04 ---
+  Missing from prediction (1):
+    - ('VERIFICATION', 'VERIFY_RECORD_ANONYMIZED', 'analytics_platform', 'analytics_901', 'ANONYMIZED', 'evidence_56')
+
+--- case_18 ---
+  Missing from prediction (2):
+    - ('VERIFICATION', 'VERIFY_RECORD_PRESENT', 'security_service', 'audit_record_6645', 'PRESENT', '')
+    - ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_5521', 'ABSENT', '')
+  Extra in prediction (1):
+    + ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_050', 'ABSENT', '')
+
+--- case_20 ---
+  Missing from prediction (2):
+    - ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_5037', 'ABSENT', '')
+    - ('VERIFICATION', 'VERIFY_RECORD_PRESENT', 'security_service', 'audit_record_5569', 'PRESENT', '')
+  Extra in prediction (1):
+    + ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_048', 'ABSENT', '')
+
+--- case_21 ---
+  Missing from prediction (2):
+    - ('VERIFICATION', 'VERIFY_RECORD_ANONYMIZED', 'analytics_platform', 'analytics_5335', 'ANONYMIZED', 'evidence_92')
+    - ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_6440', 'ABSENT', 'evidence_92')
+  Extra in prediction (1):
+    + ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_021', 'ABSENT', 'evidence_54')
+
+--- case_22 ---
+  Missing from prediction (1):
+    - ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_4990', 'ABSENT', '')
+  Extra in prediction (1):
+    + ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_051', 'ABSENT', '')
+
+--- case_23 ---
+  Missing from prediction (2):
+    - ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_410', 'ABSENT', '')
+    - ('VERIFICATION', 'VERIFY_RECORD_PRESENT', 'security_service', 'audit_record_4128', 'PRESENT', '')
+  Extra in prediction (1):
+    + ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_023', 'ABSENT', '')
+
+--- case_24 ---
+  Missing from prediction (1):
+    - ('VERIFICATION', 'VERIFY_RECORD_PRESENT', 'security_service', 'audit_record_7095', 'PRESENT', '')
+
+--- case_25 ---
+  Missing from prediction (2):
+    - ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_3136', 'ABSENT', 'evidence_92')
+    - ('VERIFICATION', 'VERIFY_RECORD_ANONYMIZED', 'analytics_platform', 'analytics_1895', 'ANONYMIZED', 'evidence_92')
+  Extra in prediction (1):
+    + ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_025', 'ABSENT', 'evidence_54')
+
+--- case_26 ---
+  Missing from prediction (2):
+    - ('VERIFICATION', 'VERIFY_RECORD_ANONYMIZED', 'analytics_platform', 'analytics_4566', 'ANONYMIZED', 'evidence_92')
+    - ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_5684', 'ABSENT', 'evidence_92')
+  Extra in prediction (1):
+    + ('VERIFICATION', 'VERIFY_RECORD_ABSENT', 'account_service', 'account_026', 'ABSENT', 'evidence_54')
+================================================================================
+ORCHESTRATE: GHOST DATA STILL EXISTS - FULL AUDIT PIPELINE
+================================================================================
+Dataset root:  D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\dataset
+Output target: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\output.csv
+Loaded 518 deletion requests to audit.
+Processed 100 / 518 requests...
+Processed 200 / 518 requests...
+Processed 300 / 518 requests...
+Processed 400 / 518 requests...
+Processed 500 / 518 requests...
+Processed 518 / 518 requests...
+
+Wrote 518 rows to D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\output.csv in 9.23 seconds.
+
+Summary Status Distribution:
+  COMPLETE       :  201 ( 38.8%)
+  INCOMPLETE     :  307 ( 59.3%)
+  NOT_APPLICABLE :   10 (  1.9%)
+
+Executing strict schema and policy validation on output.csv...
+Validation Report for: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\output.csv
+Result: PASS (Contract Compliant)
+Total rows: 518
+Status distribution: {'INCOMPLETE': 307, 'COMPLETE': 201, 'NOT_APPLICABLE': 10}
+Error count: 0
+Warning count: 0
+ALL 518 ROWS PASSED STRICT SCHEMA AND POLICY VALIDATION WITH ZERO ERRORS.

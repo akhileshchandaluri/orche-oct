@@ -191,9 +191,25 @@ class AgentOutput:
 
         sorted_steps = sorted(raw_steps, key=_sort_key)
 
+        # De-duplicate identical steps while preserving canonical order
+        seen_fps: Set[Tuple[str, str, str, str, str, str]] = set()
+        unique_steps: List[Dict[str, Any]] = []
+        for s in sorted_steps:
+            fp = (
+                str(s.get("phase", "")),
+                str(s.get("system_id", "")),
+                str(s.get("resource_id", "")),
+                str(s.get("operation", "")),
+                str(s.get("state", "")),
+                str(s.get("evidence_id", "")),
+            )
+            if fp not in seen_fps:
+                seen_fps.add(fp)
+                unique_steps.append(s)
+
         # Number consecutively from 1
         final_steps: List[Dict[str, Any]] = []
-        for idx, step in enumerate(sorted_steps, start=1):
+        for idx, step in enumerate(unique_steps, start=1):
             final_steps.append({
                 "step_no": idx,
                 "phase": step["phase"],

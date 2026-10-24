@@ -1,0 +1,34 @@
+================================================================================
+ORCHESTRATE: GHOST DATA STILL EXISTS - FULL AUDIT PIPELINE
+================================================================================
+Dataset root:  D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\dataset
+Output target: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\output.csv
+Loaded 518 deletion requests to audit.
+Groq Reasoning Assistant: ENABLED (Selective Reasoning) (Model: openai/gpt-oss-120b)
+Processed 100 / 518 requests...
+Processed 200 / 518 requests...
+Processed 300 / 518 requests...
+Processed 400 / 518 requests...
+Processed 500 / 518 requests...
+Processed 518 / 518 requests...
+
+Wrote 518 rows to D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\output.csv in 16.74 seconds.
+
+Summary Status Distribution:
+  COMPLETE       :  209 ( 40.3%)
+  INCOMPLETE     :  299 ( 57.7%)
+  NOT_APPLICABLE :   10 (  1.9%)
+
+Groq Reasoning Assistant Metrics:
+  Calls: 0 (Successful: 0, Failed: 0, Fallbacks: 0)
+  Tokens: 0 (Prompt: 0, Completion: 0)
+  Latency: 0.0s total (0.0s avg)
+
+Executing strict schema and policy validation on output.csv...
+Validation Report for: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\output.csv
+Result: PASS (Contract Compliant)
+Total rows: 518
+Status distribution: {'COMPLETE': 209, 'INCOMPLETE': 299, 'NOT_APPLICABLE': 10}
+Error count: 0
+Warning count: 0
+ALL 518 ROWS PASSED STRICT SCHEMA AND POLICY VALIDATION WITH ZERO ERRORS.

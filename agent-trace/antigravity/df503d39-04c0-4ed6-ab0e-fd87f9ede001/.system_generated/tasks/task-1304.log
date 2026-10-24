@@ -1,0 +1,62 @@
+--- Step 1: Packaging clean code.zip ---
+  Added to code.zip: code\agent_interface.py
+  Added to code.zip: code\evidence_indexer.py
+  Added to code.zip: code\identity_resolver.py
+  Added to code.zip: code\main.py
+  Added to code.zip: code\prediction_engine.py
+  Added to code.zip: code\__init__.py
+  Added to code.zip: code\evaluation\benchmark_sample.py
+  Added to code.zip: code\evaluation\evaluation_report.md
+  Added to code.zip: code\evaluation\evaluator.py
+  Added to code.zip: code\evaluation\main.py
+  Added to code.zip: code\evaluation\schema_validator.py
+  Added to code.zip: code\evaluation\test_infrastructure.py
+  Added to code.zip: code\evaluation\test_prediction_engine.py
+  Added to code.zip: code\evaluation\test_scenarios.py
+  Added to code.zip: code\evaluation\usage_report.md
+  Added to code.zip: code\evaluation\__init__.py
+
+Created code.zip (53800 bytes)
+
+--- Step 2: Setting up clean test environment ---
+Extracted files to: d:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\test_submission_env
+Contents of TEMP_DIR: ['code', 'dataset', 'README.md']
+
+--- Step 3: Running python code/main.py in isolated environment ---
+Exit code: 0
+STDOUT:
+ ================================================================================
+ORCHESTRATE: GHOST DATA STILL EXISTS - FULL AUDIT PIPELINE
+================================================================================
+Dataset root:  D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\test_submission_env\dataset
+Output target: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\test_submission_env\output.csv
+Loaded 518 deletion requests to audit.
+Processed 100 / 518 requests...
+Processed 200 / 518 requests...
+Processed 300 / 518 requests...
+Processed 400 / 518 requests...
+Processed 500 / 518 requests...
+Processed 518 / 518 requests...
+
+Wrote 518 rows to D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\test_submission_env\output.csv in 9.39 seconds.
+
+Summary Status Distribution:
+  COMPLETE       :  201 ( 38.8%)
+  INCOMPLETE     :  307 ( 59.3%)
+  NOT_APPLICABLE :   10 (  1.9%)
+
+Executing strict schema and policy validation on output.csv...
+Validation Report for: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\test_submission_env\output.csv
+Result: PASS (Contract Compliant)
+Total rows: 518
+Status distribution: {'INCOMPLETE': 307, 'COMPLETE': 201, 'NOT_APPLICABLE': 10}
+Error count: 0
+Warning count: 0
+ALL 518 ROWS PASSED STRICT SCHEMA AND POLICY VALIDATION WITH ZERO ERRORS.
+
+
+--- Step 4: Validating generated output.csv in isolated environment ---
+output.csv exists! Size: 519907 bytes
+Schema Validator Exit code: 0
+Validator Output:
+ 

@@ -37,7 +37,12 @@ class EvidenceIndexer:
     def __init__(self, dataset_dir: str | Path):
         self.dataset_dir = Path(dataset_dir)
         self.manifest: Dict[str, Dict[str, str]] = {}
+        self.known_other_accounts: Dict[str, str] = {}
+        self.grounded_account_ids: Set[str] = set()
+        self.system_activities: List[Dict[str, str]] = []
         self._load_manifest()
+        self._load_system_activity()
+        self._load_known_other_accounts()
 
     def _load_manifest(self) -> None:
         mf_path = self.dataset_dir / "evidence_files.csv"
@@ -51,6 +56,85 @@ class EvidenceIndexer:
                     "origin": row.get("origin", "").strip(),
                     "captured_at": row.get("captured_at", "").strip(),
                 }
+
+    def _load_system_activity(self) -> None:
+        act_file = self.dataset_dir / "system_activity.csv"
+        if act_file.exists():
+            with open(act_file, mode="r", encoding="utf-8") as f:
+                self.system_activities = list(csv.DictReader(f))
+
+    def _load_known_other_accounts(self) -> None:
+        """Extract explicit account-to-identity mappings from evidence logs, handovers, and snapshots."""
+        logs_dir = self.dataset_dir / "evidence" / "logs"
+        if logs_dir.exists():
+            for trace_log in sorted(logs_dir.glob("resource_lookup_trace_*.log")):
+                try:
+                    with open(trace_log, "r", encoding="utf-8") as f:
+                        for line in f:
+                            if "service=account_service" in line and "lookup_key=" in line:
+                                res = re.search(r"resource_id=(account_[0-9]+)", line)
+                                key = re.search(r"lookup_key=([^\s]+)", line)
+                                if res and key and key.group(1) != "null":
+                                    self.known_other_accounts[res.group(1)] = key.group(1).lower()
+                except Exception:
+                    pass
+
+        handover_txt = self.dataset_dir / "evidence" / "records" / "customer_account_handover_20261001.txt"
+        if handover_txt.exists():
+            try:
+                with open(handover_txt, "r", encoding="utf-8") as f:
+                    for line in f:
+                        parts = [p.strip() for p in line.split("|")]
+                        if len(parts) >= 6 and parts[1] == "account_service":
+                            self.known_other_accounts[parts[2]] = parts[5].lower()
+            except Exception:
+                pass
+
+        for snap_path in (self.dataset_dir / "evidence" / "records").glob("*.json"):
+            try:
+                with open(snap_path, "r", encoding="utf-8") as f:
+                    d = json.load(f)
+                    if isinstance(d, dict) and "snapshots" in d:
+                        for s in d["snapshots"]:
+                            if s.get("data_store") == "account_service":
+                                for rec in s.get("records", []):
+                                    aid = rec.get("resource_id")
+                                    em = rec.get("email")
+                                    if aid and em:
+                                        self.known_other_accounts[aid] = em.lower()
+                    if isinstance(d, dict) and "service_exports" in d:
+                        lookups = d["service_exports"].get("account_service", {}).get("profile_lookups", [])
+                        for lk in lookups:
+                            aid = lk.get("resource_id")
+                            if aid:
+                                self.grounded_account_ids.add(aid)
+            except Exception:
+                pass
+
+        # Grounded account associations are extracted strictly from explicit evidence snapshots and exports above
+
+    def _resolve_candidate_workflow_resources(
+        self,
+        uid: str,
+        emails: Set[str],
+        requested_at: Optional[str],
+        audit_at: str,
+    ) -> Set[str]:
+        """Resolve candidate workflow resources from grounded system_activity events."""
+        candidates: Set[str] = set()
+        if not requested_at:
+            return candidates
+
+        for a in self.system_activities:
+            if a["source_system"] != "deletion_worker":
+                continue
+            if not (requested_at <= a["event_time"] <= audit_at):
+                continue
+            det = a.get("details", "").lower()
+            if any(e in det for e in emails) or (uid.lower() in det):
+                candidates.add(a["resource_id"])
+
+        return candidates
 
     def find_evidence_for_user(
         self,
@@ -67,8 +151,19 @@ class EvidenceIndexer:
         hashes_lower = {h.lower() for h in profile.all_hashes if h}
         uid = profile.user_id
 
+        # Resolve candidate resources from deletion workflow
+        candidate_resources = self._resolve_candidate_workflow_resources(uid, emails_lower, requested_at, audit_at)
+
         # 1. Scan evidence files captured in the audit window [requested_at, audit_at]
-        for fid, finfo in self.manifest.items():
+        # Prioritize files captured within audit_at over post-audit bundles
+        sorted_files = sorted(
+            self.manifest.items(),
+            key=lambda x: (
+                x[1].get("captured_at", "") > audit_at if (audit_at and x[1].get("captured_at")) else False,
+                x[1].get("captured_at", "")
+            )
+        )
+        for fid, finfo in sorted_files:
             captured_at = finfo["captured_at"]
             rel_path = finfo["file_path"]
 
@@ -76,8 +171,9 @@ class EvidenceIndexer:
             if requested_at and captured_at and captured_at < requested_at:
                 continue
 
-            # For non-log files, captured_at must also be within audit_at
-            if not rel_path.endswith(".log"):
+            # Files captured after audit_at cannot be used during the audit.
+            # Exception: snapshot bundles and logs containing internally timestamped records.
+            if not rel_path.endswith(".log") and "snapshot_bundle" not in rel_path:
                 if captured_at and captured_at > audit_at:
                     continue
 
@@ -90,11 +186,15 @@ class EvidenceIndexer:
             if rel_path.endswith(".txt"):
                 items.extend(self._parse_handover_txt(fpath, fid, captured_at, origin, emails_lower, uid))
             elif rel_path.endswith(".json"):
-                items.extend(self._parse_json_record(fpath, fid, captured_at, origin, emails_lower, phones, hashes_lower, uid))
+                items.extend(self._parse_json_record(
+                    fpath, fid, captured_at, origin, emails_lower, phones, hashes_lower, uid, audit_at, requested_at, candidate_resources
+                ))
             elif rel_path.endswith(".sql"):
                 items.extend(self._parse_sql_snapshot(fpath, fid, captured_at, origin, emails_lower, phones, uid))
             elif rel_path.endswith(".log"):
-                items.extend(self._parse_log_file(fpath, fid, captured_at, origin, emails_lower, phones, hashes_lower, uid, audit_at, requested_at))
+                items.extend(self._parse_log_file(
+                    fpath, fid, captured_at, origin, emails_lower, phones, hashes_lower, uid, audit_at, requested_at, candidate_resources
+                ))
             elif rel_path.endswith(".pdf"):
                 items.extend(self._parse_pdf_document(fpath, fid, captured_at, origin, emails_lower, phones, uid))
 
@@ -172,6 +272,9 @@ class EvidenceIndexer:
         phones: Set[str],
         hashes: Set[str],
         uid: str,
+        audit_at: Optional[str] = None,
+        requested_at: Optional[str] = None,
+        candidate_resources: Optional[Set[str]] = None,
     ) -> List[EvidenceItem]:
         results: List[EvidenceItem] = []
         try:
@@ -181,8 +284,16 @@ class EvidenceIndexer:
             # Snapshots bundle format
             if isinstance(data, dict) and "snapshots" in data:
                 for snap in data.get("snapshots", []):
+                    snap_captured = snap.get("captured_at") or captured_at
+                    if audit_at and snap_captured > audit_at:
+                        continue
+                    if requested_at and snap_captured < requested_at:
+                        continue
                     sys_id = snap.get("data_store", "")
                     coll = snap.get("collection", "")
+                    # If bundle export was after audit_at, only trust immutable security audit logs
+                    if captured_at and audit_at and captured_at > audit_at and sys_id != "security_service":
+                        continue
                     for rec in snap.get("records", []):
                         sub_ref = str(rec.get("subject_reference") or rec.get("customer_reference") or rec.get("user_id") or "")
                         res_id = str(rec.get("resource_id", ""))
@@ -241,6 +352,7 @@ class EvidenceIndexer:
                                         or (c_email and c_email in emails)
                                         or any(e in item_str for e in emails)
                                         or (uid.lower() in item_str)
+                                        or (candidate_resources and res_id in candidate_resources)
                                     )
 
                                     if matched:
@@ -250,12 +362,12 @@ class EvidenceIndexer:
                                             obs = "ABSENT" if (status_code == 404 or prof is None) else "PRESENT"
                                             cat = "USER_PROFILE"
                                         elif sys_id == "integration_service":
-                                            enabled = item.get("enabled", True)
-                                            obs = "ACTIVE" if enabled else "DISABLED"
+                                            raw_enabled = item.get("enabled")
+                                            obs = "ACTIVE" if raw_enabled in [True, "true", 1, "1"] else "DISABLED"
                                             cat = "DATA_FLOW"
                                         elif sys_id == "backup_service":
-                                            restore_allowed = item.get("restore_allowed", True)
-                                            obs = "ACTIVE" if restore_allowed else "BLOCKED"
+                                            raw_restore = item.get("restore_allowed")
+                                            obs = "ACTIVE" if raw_restore in [True, "true", 1, "1"] else "BLOCKED"
                                             cat = "BACKUP_ARCHIVE"
                                         elif sys_id == "security_service":
                                             obs = "PRESENT"
@@ -516,18 +628,20 @@ class EvidenceIndexer:
         uid: str,
         audit_at: Optional[str] = None,
         requested_at: Optional[str] = None,
+        candidate_resources: Optional[Set[str]] = None,
     ) -> List[EvidenceItem]:
         """Parse structured logs grouping events by trace_id."""
         results: List[EvidenceItem] = []
         try:
             # Check fast filter
             content = fpath.read_text(encoding="utf-8", errors="ignore")
+            matched_cand = any(r in content for r in candidate_resources) if candidate_resources else False
             matched_em = [e for e in emails if e in content.lower()]
             matched_ph = [p for p in phones if p in content]
             matched_h = [h for h in hashes if h in content.lower()]
             matched_u = uid.lower() in content.lower()
 
-            if not (matched_em or matched_ph or matched_h or matched_u):
+            if not (matched_em or matched_ph or matched_h or matched_u or matched_cand):
                 return results
 
             # Group lines by trace_id
@@ -540,6 +654,9 @@ class EvidenceIndexer:
                     continue
 
                 event_dict: Dict[str, Any] = {}
+                line_time_match = re.match(r"^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z)", line_str)
+                line_ts = line_time_match.group(1) if line_time_match else None
+
                 json_match = re.search(r"(\{.*\})", line_str)
                 if json_match:
                     try:
@@ -555,6 +672,9 @@ class EvidenceIndexer:
 
                 if not event_dict:
                     continue
+
+                if line_ts and "timestamp" not in event_dict and "event_time" not in event_dict:
+                    event_dict["line_timestamp"] = line_ts
 
                 tid = event_dict.get("trace_id")
                 if tid:
@@ -573,6 +693,7 @@ class EvidenceIndexer:
                     or any(p in trace_str for p in phones)
                     or any(h in trace_str for h in hashes)
                     or (uid.lower() in trace_str)
+                    or any(r in trace_str for r in (candidate_resources or []))
                 )
 
                 if not trace_matches:
@@ -588,13 +709,17 @@ class EvidenceIndexer:
                     if event_name.endswith("_started"):
                         continue
 
-                    # Filter by event timestamp if present
-                    ev_time = ev.get("timestamp") or ev.get("event_time") or ev.get("time")
-                    if ev_time:
-                        if audit_at and ev_time > audit_at:
-                            continue
-                        if requested_at and ev_time < requested_at:
-                            continue
+                    # Filter by event timestamp if present; for untimed log entries, use defensible file-level captured_at
+                    ev_time = ev.get("timestamp") or ev.get("event_time") or ev.get("time") or ev.get("line_timestamp")
+                    if not ev_time:
+                        ev_time = captured_at
+                    if not ev_time:
+                        # Cannot establish event timing relative to cutoff; do not treat as proven evidence
+                        continue
+                    if audit_at and ev_time > audit_at:
+                        continue
+                    if requested_at and ev_time < requested_at:
+                        continue
 
                     sys_id = ev.get("service") or ev.get("logger") or "account_service"
                     if sys_id == "support_replica":
@@ -652,7 +777,7 @@ class EvidenceIndexer:
                     results.append(
                         EvidenceItem(
                             evidence_id=fid,
-                            captured_at=captured_at,
+                            captured_at=ev_time,
                             system_id=sys_id,
                             resource_id=res_id,
                             data_category=cat,
@@ -742,3 +867,60 @@ class EvidenceIndexer:
         except Exception:
             pass
         return results
+
+    def get_grounded_anonymized_analytics(self, audit_at: Optional[str] = None) -> Dict[str, Tuple[str, str]]:
+        """Index grounded anonymized analytics profiles from explicit evidence files.
+        
+        Returns a mapping of resource_id -> (evidence_id, captured_at) where
+        identifying fields (email, phone, user_id, customer_reference) were nullified
+        in accordance with official rules 7 and 8.
+        """
+        anonymized_map: Dict[str, Tuple[str, str]] = {}
+        for fid, finfo in self.manifest.items():
+            fpath = self.dataset_dir / finfo["file_path"]
+            if not fpath.exists():
+                continue
+            cap_at = finfo["captured_at"]
+            if audit_at and cap_at > audit_at:
+                continue
+            rel_path = finfo["file_path"].lower()
+
+            if rel_path.endswith(".json"):
+                try:
+                    with open(fpath, mode="r", encoding="utf-8") as f:
+                        d = json.load(f)
+                    if isinstance(d, dict) and "service_exports" in d:
+                        profiles = d["service_exports"].get("analytics_platform", {}).get("profiles", [])
+                        for rec in profiles:
+                            if rec.get("email") is None and rec.get("customer_reference") is None:
+                                rid = rec.get("resource_id")
+                                if rid:
+                                    anonymized_map[rid] = (fid, cap_at)
+                    if isinstance(d, dict) and "snapshots" in d:
+                        for s in d.get("snapshots", []):
+                            if s.get("data_store") == "analytics_platform":
+                                for rec in s.get("records", []):
+                                    if rec.get("email") is None and rec.get("user_id") is None and rec.get("phone") is None:
+                                        rid = rec.get("resource_id")
+                                        if rid:
+                                            anonymized_map[rid] = (fid, cap_at)
+                    for rec in d.get("analytics_profiles", []) or d.get("records", []):
+                        if rec.get("email") is None and rec.get("user_id") is None:
+                            rid = rec.get("resource_id")
+                            if rid:
+                                anonymized_map[rid] = (fid, cap_at)
+                except Exception:
+                    pass
+
+            elif rel_path.endswith(".log"):
+                try:
+                    with open(fpath, mode="r", encoding="utf-8") as f:
+                        for line in f:
+                            if "service=analytics_platform" in line and ("event=analytics_profile_read_completed" in line or "analytics_profile" in line):
+                                m_res = re.search(r"resource_id=(analytics_[0-9]+)", line)
+                                if m_res and "customer_reference=null" in line and "email=null" in line:
+                                    anonymized_map[m_res.group(1)] = (fid, cap_at)
+                except Exception:
+                    pass
+
+        return anonymized_map

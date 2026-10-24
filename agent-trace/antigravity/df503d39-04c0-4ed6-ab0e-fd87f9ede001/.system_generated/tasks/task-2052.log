@@ -1,0 +1,7 @@
+Successfully scheduled one-shot timer.
+Expected to fire at: 2026-10-25T00:47:54+05:30
+Prompt: Check sandbox task completion
+Early Termination: never
+
+[2026-10-25T00:47:52+05:30] Still waiting. Remaining time: 2s
+[2026-10-25T00:47:54+05:30] Timer fired.
