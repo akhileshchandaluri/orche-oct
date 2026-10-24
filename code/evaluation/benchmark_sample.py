@@ -118,7 +118,7 @@ def run_benchmark():
         print(f"  {cid}: Predicted {p_stat} vs Reference {r_stat}")
 
     print(f"\nStep Mismatches ({len(step_mismatches)} / {len(sample_requests)}):")
-    for cid, p_t, r_t in step_mismatches[:10]:
+    for cid, p_t, r_t in step_mismatches:
         print(f"\n--- {cid} ---")
         p_set = set(p_t)
         r_set = set(r_t)

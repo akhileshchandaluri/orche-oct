@@ -41,17 +41,18 @@ Across multiple optimization cycles on the 32 representative sample requests (`d
 | **Iteration 1** | Baseline heuristic pipeline | 71.9% | 0.4087 | 0.5337 | 0.4629 | 15.6% | 100.0% |
 | **Iteration 2** | Temporal audit cutoffs + log trace grouping | 84.4% | 0.8258 | 0.6632 | 0.7356 | 31.3% | 100.0% |
 | **Iteration 3** | Result-only log extraction + SQLite `record_json` unpacking | 93.8% | 0.8588 | 0.7565 | 0.8044 | 37.5% | 100.0% |
-| **Iteration 4 (Final)** | Support replica marker check + flow state mapping + handover parsing | **100.0%** | **0.9278** | **0.8653** | **0.8954** | **50.0%** | **100.0%** |
+| **Iteration 4** | Support replica marker check + flow state mapping + handover parsing | 100.0% | 0.9278 | 0.8653 | 0.8954 | 50.0% | 100.0% |
+| **Iteration 5 (Final)** | Execution-window account resolution + verified evidence linkage | **100.0%** | **0.9667** | **0.9016** | **0.9330** | **56.2%** | **100.0%** |
 
 ### Benchmark Evaluation Metrics Summary (Final Iteration)
 
 - **Total Cases Evaluated**: 32
 - **Status Accuracy**: **100.0%** (32 / 32 exact status matches)
 - **Status Mismatches**: **0**
-- **Exact Row Accuracy**: **50.0%** (16 of 32 rows are 100% byte-for-byte identical to ground truth)
-- **Step Precision**: **92.78%**
-- **Step Recall**: **86.53%**
-- **Step F1 Score**: **89.54%**
+- **Exact Row Accuracy**: **56.25%** (18 of 32 rows are 100% byte-for-byte identical to ground truth)
+- **Step Precision**: **96.67%**
+- **Step Recall**: **90.16%**
+- **Step F1 Score**: **93.30%**
 - **Sequence Accuracy**: **100.0%** (all predicted step sequences strictly follow phase and operation precedence)
 - **Schema Validity**: **100% Compliant** (0 errors, 0 warnings)
 
