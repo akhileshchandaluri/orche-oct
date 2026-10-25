@@ -1,49 +1,34 @@
+import sys
 import csv
 import json
 from pathlib import Path
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
 
-PROJECT_ROOT = Path("d:/btech/projects/orchestrate/orchestrate oct/hackerrank-orchestrate-october26")
-DATASET_DIR = PROJECT_ROOT / "dataset"
+from code.prediction_engine import PredictionEngine
 
-with open(DATASET_DIR / "sample_deletion_requests.csv", "r", encoding="utf-8") as f:
+engine = PredictionEngine(dataset_dir=Path('dataset'), enable_groq=False)
+with open('dataset/sample_deletion_requests.csv', encoding='utf-8') as f:
     sample_reqs = list(csv.DictReader(f))
-
-with open(DATASET_DIR / "system_activity.csv", "r", encoding="utf-8") as f:
-    all_acts = list(csv.DictReader(f))
-
-with open(DATASET_DIR / "sample_output.csv", "r", encoding="utf-8") as f:
-    gt = {}
-    for r in csv.DictReader(f):
-        for s in json.loads(r["steps_json"]):
-            if s["system_id"] == "account_service":
-                gt[r["case_id"]] = s["resource_id"]
-
-dw_acc_acts = [
-    a for a in all_acts 
-    if a["source_system"] == "deletion_worker" and a["target_system"] == "account_service"
-]
-
-print(f"Total deletion worker account actions: {len(dw_acc_acts)}")
-print(f"Ground truth accounts count: {len(gt)}")
-
-# Let's inspect the matching for cases where our previous logic failed:
-failed_cases = ['case_18', 'case_20', 'case_21', 'case_22', 'case_23', 'case_25', 'case_26', 'case_27', 'case_28', 'case_29', 'case_30', 'case_31', 'case_32']
+with open('dataset/sample_output.csv', encoding='utf-8') as f:
+    sample_outs = {r['case_id']: r for r in csv.DictReader(f)}
 
 for req in sample_reqs:
-    cid = req["case_id"]
-    if cid not in failed_cases:
-        continue
-    req_t = req["requested_at"]
-    rep_t = req["reported_at"]
-    rep_stat = req["reported_status"]
-    gt_acc = gt.get(cid)
-    
-    # Candidate acts in window: within 2 hours before reported_at
-    cands = [
-        a for a in dw_acc_acts
-        if req_t <= a["event_time"] <= rep_t
-    ]
-    print(f"\n{cid} (req={req_t}, rep={rep_t}, stat={rep_stat}, GT={gt_acc}):")
-    for c in cands:
-        is_match = (c["resource_id"] == gt_acc)
-        print(f"   {'[MATCH]' if is_match else '       '} {c['event_time']} {c['resource_id']} {c['reported_result']}")
+    cid = req['case_id']
+    engine.forensics_engine.register_request(req)
+    prof = engine.forensics_engine.resolver.resolve_by_email(req['email'])
+    ev_items = engine.forensics_engine.indexer.find_evidence_for_user(prof, req['audit_at'], req['requested_at'])
+    res_id, ev_id = engine.forensics_engine.resolve_primary_account_id(
+        profile=prof,
+        req_email=req['email'],
+        requested_at=req['requested_at'],
+        reported_at=req['reported_at'],
+        audit_at=req['audit_at'],
+        evidence_items=ev_items,
+        reported_status=req['reported_status']
+    )
+    truth_steps = json.loads(sample_outs[cid]['steps_json'])
+    truth_acc = [s['resource_id'] for s in truth_steps if s['system_id'] == 'account_service']
+    is_match = (res_id in truth_acc) if truth_acc else (res_id == '')
+    mark = 'MATCH' if is_match else 'MISMATCH'
+    print(f'{cid}: pred={res_id} truth={truth_acc} [{mark}]')

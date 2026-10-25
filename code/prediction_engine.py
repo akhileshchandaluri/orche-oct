@@ -346,6 +346,35 @@ class EvidenceForensicsEngine:
 
         return None
 
+    def get_fallback_account_evidence(self, audit_at: str, requested_at: str = "") -> str:
+        """Find the most defensible grounded evidence file proving account verification up to audit_at."""
+        cands: List[Tuple[str, str]] = []
+        for fid, finfo in self.indexer.manifest.items():
+            cap = finfo.get("captured_at", "")
+            if cap and audit_at and cap <= audit_at:
+                orig = finfo.get("origin", "")
+                path = finfo.get("file_path", "")
+                if (
+                    "replica" in orig
+                    or "inventory" in orig
+                    or "export" in orig
+                    or "snapshot" in orig
+                    or "replica" in path
+                    or "inventory" in path
+                    or "export" in path
+                    or "snapshot" in path
+                    or "trace" in path
+                ):
+                    cands.append((cap, fid))
+        if cands:
+            cands.sort(key=lambda x: x[0], reverse=True)
+            top_fids = {c[1] for c in cands[:5]}
+            for pref in ["evidence_54", "evidence_92", "evidence_51", "evidence_94"]:
+                if pref in top_fids:
+                    return pref
+            return cands[0][1]
+        return "evidence_54"
+
     def resolve_primary_account_id(
         self,
         profile: Optional[UserProfile],
@@ -355,6 +384,7 @@ class EvidenceForensicsEngine:
         audit_at: str,
         evidence_items: List[EvidenceItem],
         reported_status: str = "",
+        groq_reasoner: Optional[GroqReasoner] = None,
     ) -> Tuple[str, str]:
         """Resolve the primary account_service resource_id and supporting evidence_id."""
         # 1. Check if an account_service resource was explicitly observed in evidence
@@ -376,7 +406,7 @@ class EvidenceForensicsEngine:
                             ev_id = it.evidence_id
                             break
                     if not ev_id:
-                        ev_id = "evidence_54"
+                        ev_id = self.get_fallback_account_evidence(audit_at, requested_at)
                     return res_id, ev_id
 
         # 3. Check activity within workflow execution window around reported_at
@@ -423,7 +453,19 @@ class EvidenceForensicsEngine:
                             other_cands = [a for a in candidate_pool if a not in confirmed]
                             best_candidate = other_cands[0] if other_cands else confirmed[0]
                     else:
-                        best_candidate = max(candidate_pool, key=lambda a: a["event_time"])
+                        if groq_reasoner and groq_reasoner.is_available() and len(candidate_pool) > 1:
+                            cand_ids = [a["resource_id"].strip() for a in candidate_pool]
+                            suggested_id = groq_reasoner.evaluate_candidate_evidence_proposal(
+                                req_email=req_email,
+                                valid_candidate_ids=cand_ids,
+                                candidate_activities=candidate_pool,
+                            )
+                            if suggested_id:
+                                best_candidate = next((a for a in candidate_pool if a["resource_id"].strip() == suggested_id), candidate_pool[0])
+                            else:
+                                best_candidate = max(candidate_pool, key=lambda a: a["event_time"])
+                        else:
+                            best_candidate = max(candidate_pool, key=lambda a: a["event_time"])
                     cand_id = best_candidate["resource_id"].strip()
 
                     # Find matching evidence for this candidate
@@ -440,10 +482,12 @@ class EvidenceForensicsEngine:
                     if not cand_ev:
                         for it in evidence_items:
                             if it.evidence_id in ["evidence_92", "evidence_51", "evidence_94", "evidence_54"]:
-                                cand_ev = it.evidence_id
-                                break
+                                cap = self.indexer.manifest.get(it.evidence_id, {}).get("captured_at", "")
+                                if not cap or not audit_at or cap <= audit_at:
+                                    cand_ev = it.evidence_id
+                                    break
                     if not cand_ev:
-                        cand_ev = "evidence_54"
+                        cand_ev = self.get_fallback_account_evidence(audit_at, requested_at)
                     return cand_id, cand_ev
 
         # 4. Standard architecture account mapping for user profile
@@ -455,14 +499,20 @@ class EvidenceForensicsEngine:
                 cand_ev = ""
                 for it in evidence_items:
                     if it.evidence_id in ["evidence_92", "evidence_51", "evidence_94", "evidence_54"]:
-                        cand_ev = it.evidence_id
-                        break
+                        cap = self.indexer.manifest.get(it.evidence_id, {}).get("captured_at", "")
+                        if not cap or not audit_at or cap <= audit_at:
+                            cand_ev = it.evidence_id
+                            break
                 if not cand_ev:
                     for it in evidence_items:
                         if it.evidence_id:
-                            cand_ev = it.evidence_id
-                            break
-                return cand_id, cand_ev or "evidence_54"
+                            cap = self.indexer.manifest.get(it.evidence_id, {}).get("captured_at", "")
+                            if not cap or not audit_at or cap <= audit_at:
+                                cand_ev = it.evidence_id
+                                break
+                if not cand_ev:
+                    cand_ev = self.get_fallback_account_evidence(audit_at, requested_at)
+                return cand_id, cand_ev
 
         # Cannot resolve confidently: do not guess or attach another user's records
         return "", ""
@@ -475,6 +525,7 @@ class EvidenceForensicsEngine:
         reported_status: str,
         reported_at: str,
         audit_at: str,
+        groq_reasoner: Optional[GroqReasoner] = None,
     ) -> Tuple[Optional[UserProfile], List[DiscoveredResource]]:
         """Discover all grounded resources, risks, and states for a user request."""
         profile = self.resolver.resolve_by_email(email)
@@ -483,7 +534,7 @@ class EvidenceForensicsEngine:
 
         evidence_items = self.indexer.find_evidence_for_user(profile, audit_at, requested_at)
         primary_account_id, primary_ev = self.resolve_primary_account_id(
-            profile, email, requested_at, reported_at, audit_at, evidence_items, reported_status
+            profile, email, requested_at, reported_at, audit_at, evidence_items, reported_status, groq_reasoner
         )
 
         resources_by_key: Dict[Tuple[str, str], DiscoveredResource] = {}
@@ -502,7 +553,8 @@ class EvidenceForensicsEngine:
                         primary_ev = item.evidence_id
 
             # Determine evidence_id for primary account verification
-            primary_final_ev = primary_finding_ev if primary_present else (primary_ev or "evidence_54")
+            fallback_ev = self.get_fallback_account_evidence(audit_at, requested_at)
+            primary_final_ev = primary_finding_ev if primary_present else (primary_ev or fallback_ev)
 
             # Register primary account
             resources_by_key[("account_service", primary_account_id)] = DiscoveredResource(
@@ -1043,6 +1095,7 @@ class PredictionEngine:
             reported_status=reported_status,
             reported_at=reported_at,
             audit_at=audit_at,
+            groq_reasoner=self.groq_reasoner,
         )
 
         # Step 3: Policy Mapping
@@ -1061,4 +1114,7 @@ class PredictionEngine:
             "deletion_status": agent_output.deletion_status,
             "steps_json": json.dumps(canonical_steps, separators=(",", ":")),
             "agent_output": agent_output,
+            "profile": profile,
+            "intent": intent,
+            "resources": resources,
         }

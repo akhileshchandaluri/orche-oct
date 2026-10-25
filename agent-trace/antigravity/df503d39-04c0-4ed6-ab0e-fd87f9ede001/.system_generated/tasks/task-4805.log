@@ -1,0 +1,17 @@
+Using CPU. Note: This module is much faster with a GPU.
+16: Subject filter: user_03
+34: audit_record_003
+46: account_closure
+51: user_03
+54: audit_record_003
+56: user_03
+60: user_03
+63: audit_record
+72: user_03
+75: audit_record_00T
+81: user_03
+84: audit_record
+91: user_03
+94: audit_record_005
+100: user_03
+103: audit_record_004

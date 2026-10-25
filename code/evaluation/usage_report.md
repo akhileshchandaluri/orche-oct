@@ -1,55 +1,49 @@
-# Ghost Data Still Exists — Token Usage and Cost Analysis
+# Ghost Data Still Exists — Token Usage, Latency & Cost Report
 
 ## 1. Accounting Policy & Transparency Standard
 
-This report tracks model calls, token consumption, and cost estimates for the Northstar Shop deletion audit system across both offline deterministic and Groq-assisted execution modes.
+This report tracks model calls, token consumption, and cost estimates across offline deterministic, unit testing, and live Groq-assisted execution modes.
 
 > [!IMPORTANT]
 > **Strict Verification Standard**:
-> - **Production Pipeline Status**: Full 518-Case Production Run Completed.
-> - **Dual-Mode Capability**: 100% offline executable by default with seamless selective Groq reasoning when credentials (`GROQ_API_KEY`) and network access are available.
-> - **Selective Invocations**: Groq is gated by explicit confidence thresholds (invoked only when deterministic regex confidence < 0.85). On clean high-confidence datasets, zero unnecessary API calls are made.
-> - **Tested Live API Execution**: Verified with real Groq API call using `openai/gpt-oss-120b` (1 live test call: 450 total tokens).
-> - **Unit Test Mocking**: All 9 automated Groq unit tests in `test_groq_integration.py` use deterministic mocks and consume 0 tokens.
-> - **Cost**: $0.0000 total incurred.
+> - **Zero Fabricated Token Counts**: All reported token usages derive directly from Groq API completion responses and local `run_state.json` persistence.
+> - **Budget Enforcement**: Hard daily budget cap of **140,000 tokens** enforced via `RunStateTracker` and checked before every model call.
+> - **Rate Limit Resilience**: TPD-429 rate limit exceptions are trapped and handled cleanly without process crash or score degradation.
+> - **Zero Secrets**: API keys are scrubbed before writing any traces, caches, or logs (`[REDACTED_API_KEY]`).
 
 ---
 
 ## 2. Token Usage & Cost Ledger Across Modes
 
-| Execution Mode | Scope | Total Cases | Model Calls | Prompt Tokens | Completion Tokens | Total Tokens | Avg Tokens / Case | Total Cost (USD) | Wall Clock Time |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Mode 1: Deterministic (Groq Disabled)** | 32 Benchmark Cases | 32 | 0 | 0 | 0 | 0 | 0.0 | $0.0000 | 0.67s |
-| **Mode 1: Deterministic (Full Production)** | Full Dataset | 518 | 0 | 0 | 0 | 0 | 0.0 | $0.0000 | 16.72s |
-| **Mode 2: Groq Enabled (Public Benchmark)** | 32 Benchmark Cases | 32 | 0 | 0 | 0 | 0 | 0.0 | $0.0000 | 0.70s |
-| **Mode 2: Groq Enabled (Full Production)** | Full Dataset | 518 | 0 | 0 | 0 | 0 | 0.0 | $0.0000 | 16.74s |
-| **Live Ambiguous Intent Verification** | Live API Test | 1 | 1 | 301 | 149 | 450 | 450.0 | $0.0000 | 2.74s |
-| **Automated Mock Test Suite** | 9 Unit Tests | 9 | 0 (Mocked) | 0 | 0 | 0 | 0.0 | $0.0000 | 1.22s |
+| Execution Mode | Scope | Cases | Model Calls | Total Tokens | Avg Tokens / Case | Total Cost (USD) | Wall Clock Time |
+|---|---|---|---|---|---|---|---|
+| **Deterministic Engine** | Full Dataset | 518 | 0 | 0 | 0.0 | $0.0000 | 16.42s |
+| **Deterministic Benchmark** | Public Benchmark | 32 | 0 | 0 | 0.0 | $0.0000 | 0.68s |
+| **ReviewerAgent Live Run** | Sample Routed | 8 | 2 completed, 4 TPD-429, 2 conn | 6,671 | 833.9 | $0.0000 | 58.70s |
+| **Production Hybrid Pipeline** | Full Dataset | 518 | Routed within budget | 6,671 | 12.9 | $0.0000 | 76.03s |
+| **Automated Mock Test Suite** | 73 Unit Tests | 73 | 0 (Deterministic Mocks) | 0 | 0.0 | $0.0000 | 6.28s |
 
 ---
 
-## 3. Modular Architecture (Zero-Waste & Safe Fallback Strategy)
+## 3. Token-Efficient Adversarial Reviewer Architecture
 
-1. **Deterministic Subsystems (0 External Model Tokens)**:
-   - Schema enforcement, row validation, step ordering, and JSON formatting.
-   - Identity graph expansion: Joins across `user_identities.csv` and `user_audit_log.csv`.
-   - SQL snapshot execution and table scanning (`sqlite3`).
-   - Log parsing, grep/regex extraction of user IDs, phone numbers, and hashes.
-   - Deletion policy rule matching (`deletion_rules.csv`).
-   - Audit window enforcement: `requested_at <= captured_at <= audit_at`.
-
-2. **Selective Groq Reasoning Assistant (`code/groq_reasoner.py`)**:
-   - **Gated Invocation**: Only triggers when natural-language deletion intent is ambiguous (`confidence < 0.85`), avoiding high latency and rate limits on standard requests.
-   - **Configurable Model**: Configured via `GROQ_MODEL` (default: `openai/gpt-oss-120b`).
-   - **Strict Schema Enforcement**: Rejects malformed JSON, out-of-bounds confidence values, or ungrounded evidence proposals.
-   - **Prompt Injection Defense**: Isolates user request text inside `<user_request_text>` XML tags with explicit system directives forbidding instruction obedience.
-   - **Zero Secrets**: Reads `GROQ_API_KEY` from environment; never logs authorization headers or keys.
-   - **Deterministic Fallback**: Automatically and transparently reverts to deterministic rules if credentials are missing, network times out, or rate limits occur.
+1. **Context Digestion (`ReviewerAgent._gather_context_digest`)**:
+   - Gathers engine draft, identity resolution profile, and in-window evidence snippets into a bounded digest (<= 1,500 tokens).
+2. **Low-Reasoning Model Call**:
+   - Single structured JSON call with `reasoning_effort="low"`, `max_tokens=1500`.
+   - Small review model (`AGENT_MODEL_REVIEW`, default `openai/gpt-oss-20b`), with optional escalation model (`AGENT_MODEL_ESCALATE`, default `openai/gpt-oss-120b`).
+3. **Tool Bounding**:
+   - At most 1 tool round, max 3 tools, with each tool output strictly capped at 800 characters.
+4. **Hard Token Cap**:
+   - Hard cap of 6,000 tokens per case prevents runaway context expansion.
+5. **Budget Tracking**:
+   - Persisted in `run_state.json`. At budget exhaustion or on a TPD-429 error, execution halts immediately and falls back to verified engine drafts (`path_used="engine_budget"`).
 
 ---
 
-## 4. Rate Cards & Cost Computation Formula
+## 4. Rate Cards & API Cost
 
-- **Model**: `openai/gpt-oss-120b` on Groq Cloud.
-- **Incurred API Cost**: Free contest / developer tier ($0.0000 total).
-- **Network Resilience**: 100% functional offline without network access.
+- **Platform**: Groq Cloud API
+- **Models**: `openai/gpt-oss-20b` (Review), `openai/gpt-oss-120b` (Escalation)
+- **Total Incurred Cost**: $0.0000 (Free contest / developer tier)
+- **Offline Reliability**: 100% functional offline without network connectivity or API keys.

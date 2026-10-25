@@ -103,3 +103,11 @@ with zipfile.ZipFile(ZIP_OUTPUT, mode="r") as zf:
         print("Zero API keys or secrets detected in archive contents.")
 
 print("\nagent-trace.zip successfully generated, validated, and ready for submission!")
+
+# Copy to Desktop for direct submission
+desktop = Path(os.path.expanduser("~/Desktop"))
+if desktop.exists():
+    dest_desktop = desktop / "agent-trace.zip"
+    shutil.copy2(ZIP_OUTPUT, dest_desktop)
+    print(f"Copied updated agent-trace.zip to {dest_desktop}")
+

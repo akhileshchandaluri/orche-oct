@@ -1,0 +1,60 @@
+================================================================================
+STAGE 5: LIVE RUN - ROUTED SAMPLE BENCHMARK (CAP 8)
+================================================================================
+Step 1: Auditing all 32 sample cases with deterministic engine...
+Identified 13 uncertain cases on sample dataset.
+Selected 8 cases for live ReviewerAgent review: ['case_18', 'case_20', 'case_24', 'case_05', 'case_09', 'case_10', 'case_11', 'case_14']
+
+Step 2: Executing live ReviewerAgent calls on selected cases...
+
+[1/8] Reviewing Case case_18 (Reasons: ['conflicting_evidence'], Budget Remaining: 140,000)...
+  -> Path: engine_budget_429 | Status: None | Steps: 0 | Tokens: 0 | Latency: 1.12s
+     Note: TPD-429 RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kpyxc73hfzst6ze7y3tywh0y` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199086, Requested 1802. Please try again in 6m23.616s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+
+[2/8] Reviewing Case case_20 (Reasons: ['conflicting_evidence'], Budget Remaining: 140,000)...
+  -> Path: engine_budget_429 | Status: None | Steps: 0 | Tokens: 0 | Latency: 1.19s
+     Note: TPD-429 RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kpyxc73hfzst6ze7y3tywh0y` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199084, Requested 1649. Please try again in 5m16.656s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+
+[3/8] Reviewing Case case_24 (Reasons: ['conflicting_evidence'], Budget Remaining: 140,000)...
+  -> Path: engine_budget_429 | Status: None | Steps: 0 | Tokens: 0 | Latency: 1.29s
+     Note: TPD-429 RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kpyxc73hfzst6ze7y3tywh0y` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199081, Requested 1826. Please try again in 6m31.824s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+
+[4/8] Reviewing Case case_05 (Reasons: ['conflicting_evidence'], Budget Remaining: 140,000)...
+  -> Path: engine_budget_429 | Status: None | Steps: 0 | Tokens: 0 | Latency: 15.02s
+     Note: TPD-429 RateLimitError: Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kpyxc73hfzst6ze7y3tywh0y` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199046, Requested 1789. Please try again in 6m0.72s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+
+[5/8] Reviewing Case case_09 (Reasons: ['conflicting_evidence'], Budget Remaining: 140,000)...
+  -> Path: engine_fallback | Status: None | Steps: 0 | Tokens: 0 | Latency: 14.27s
+     Note: ReviewerAgent error: Connection error.
+
+[6/8] Reviewing Case case_10 (Reasons: ['historical_identity_match', 'conflicting_evidence'], Budget Remaining: 140,000)...
+  -> Path: reviewer_agree | Status: INCOMPLETE | Steps: 0 | Tokens: 4896 | Latency: 10.38s
+
+[7/8] Reviewing Case case_11 (Reasons: ['conflicting_evidence'], Budget Remaining: 135,104)...
+  -> Path: engine_fallback | Status: None | Steps: 0 | Tokens: 0 | Latency: 14.34s
+     Note: ReviewerAgent error: Connection error.
+
+[8/8] Reviewing Case case_14 (Reasons: ['conflicting_evidence'], Budget Remaining: 135,104)...
+  -> Path: reviewer_agree | Status: INCOMPLETE | Steps: 0 | Tokens: 1775 | Latency: 0.78s
+
+================================================================================
+STEP 3: EVALUATION AGAINST sample_output.csv
+================================================================================
+Total Reference Cases:   32
+Exact-Row Matches:       29 / 32 (90.62%)
+Status Matches:          32 / 32 (100.00%)
+Step Precision:          0.9948
+Step Recall:             0.9845
+Step F1-Score:           0.9896
+Mismatched Cases:        ['case_18', 'case_20', 'case_23']
+
+ReviewerAgent Performance Summary:
+  Cases Reviewed:        8
+  Agreed with Engine:    2
+  Amendments Accepted:   0
+  Amendments Rejected:   0
+  Total Tokens Used:     6,671
+  Average Tokens/Case:   833.9
+
+Regression Gate Check:
+[GATE PASS] No drop below 29/32 exact (90.62%) and 100% status match!

@@ -1,0 +1,40 @@
+================================================================================
+ORCHESTRATE: GHOST DATA STILL EXISTS - COMPLIANCE AUDIT PIPELINE
+================================================================================
+Timestamp:       2026-10-25T07:11:11.905704+00:00
+Dataset root:    D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\dataset
+Output target:   D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\prod_dry_run.csv
+Execution Mode:  HYBRID
+Dry Run:         True
+Concurrency:     1
+Daily Budget:    140,000 tokens
+Loaded 518 cases to evaluate.
+Processed  50 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 100 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 150 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 200 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 250 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 300 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 350 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 400 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 450 / 518 cases (Status: COMPLETE, Path: engine)
+Processed 500 / 518 cases (Status: COMPLETE, Path: engine)
+Processed 518 / 518 cases (Status: INCOMPLETE, Path: engine)
+
+================================================================================
+ROUTING AND UNCERTAINTY ANALYSIS REPORT
+================================================================================
+Total Cases Analyzed:   518
+Total Cases Routed:     209 (40.3%)
+
+Routed Breakdown by Uncertainty Reason:
+  - multiple_candidate_accounts     :    0
+  - historical_identity_match       :  100
+  - intent_confidence_low           :    0
+  - conflicting_evidence            :  140
+  - invariant_violation             :    0
+
+Estimated Tokens Required: 836,000 tokens (routed x 4,000)
+Current Daily Token Budget: 140,000 (Remaining Today: 140,000)
+
+[DRY RUN COMPLETE] Zero API tokens invoked, no output files modified.

@@ -1,0 +1,17 @@
+=== SAMPLE ROUTING RESULTS ===
+Total: 32, Routed: 26
+  multiple_candidate_accounts: 0
+  historical_identity_match: 3
+  intent_confidence_low: 0
+  conflicting_evidence: 26
+  invariant_violation: 0
+Sample routed case IDs: ['case_02', 'case_05', 'case_06', 'case_07', 'case_08', 'case_09', 'case_10', 'case_11', 'case_12', 'case_13', 'case_14', 'case_15', 'case_16', 'case_17', 'case_18', 'case_19', 'case_20', 'case_22', 'case_23', 'case_24', 'case_25', 'case_26', 'case_28', 'case_29', 'case_30', 'case_32']
+
+=== PRODUCTION ROUTING RESULTS ===
+Total: 518, Routed: 421
+  multiple_candidate_accounts: 0
+  historical_identity_match: 100
+  intent_confidence_low: 0
+  conflicting_evidence: 406
+  invariant_violation: 0
+Estimated Tokens (routed x 4k): 1,684,000 tokens (Budget: 140,000)

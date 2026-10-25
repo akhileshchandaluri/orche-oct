@@ -1,0 +1,21 @@
+{
+  "case_id": "case_14",
+  "verdict": "agree",
+  "amendments": [],
+  "metrics": {
+    "model_review": "openai/gpt-oss-20b",
+    "tokens": 1775,
+    "tool_calls": 0,
+    "latency": 0.77406907081604,
+    "tokens_used": 1775
+  },
+  "ledger_resources": [
+    "audit_record_987",
+    "user_37",
+    "user_370",
+    "user_375"
+  ],
+  "ledger_files": [
+    "evidence_03"
+  ]
+}

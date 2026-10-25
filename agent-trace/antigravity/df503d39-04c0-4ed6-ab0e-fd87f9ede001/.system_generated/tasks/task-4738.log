@@ -1,0 +1,35 @@
+======================================================================
+CHECK 5: CLEAN DIRECTORY EXTRACTION & ENTRY POINT EXECUTION
+======================================================================
+Extracting code.zip -> d:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\clean_env_test...
+
+--- Running Unit Tests in Clean Directory ---
+Return code: 0
+Stderr snippet:
+ ..............................................
+----------------------------------------------------------------------
+Ran 46 tests in 3.178s
+
+OK
+Tests: 46 / 46 PASS
+
+--- Running Entry Point with Positional Arguments: python code/main.py dataset output.csv --disable-groq ---
+Return code: 0
+Stdout summary:
+  Latency: 0.0s total (0.0s avg)
+
+Executing strict schema and policy validation on output.csv...
+Validation Report for: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\clean_env_test\output.csv
+Result: PASS (Contract Compliant)
+Total rows: 518
+Status distribution: {'COMPLETE': 209, 'INCOMPLETE': 299, 'NOT_APPLICABLE': 10}
+Error count: 0
+Warning count: 0
+ALL 518 ROWS PASSED STRICT SCHEMA AND POLICY VALIDATION WITH ZERO ERRORS.
+
+Generated output.csv lines: 519 (Header + 518 data rows)
+
+--- Running Entry Point with Default Flags: python code/main.py --disable-groq ---
+Return code: 0
+
+Clean directory verification: ALL PASSED (100% REPRODUCIBLE)

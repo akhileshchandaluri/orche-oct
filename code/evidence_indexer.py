@@ -171,32 +171,38 @@ class EvidenceIndexer:
             if requested_at and captured_at and captured_at < requested_at:
                 continue
 
-            # Files captured after audit_at cannot be used during the audit.
-            # Exception: snapshot bundles and logs containing internally timestamped records.
-            if not rel_path.endswith(".log") and "snapshot_bundle" not in rel_path:
-                if captured_at and captured_at > audit_at:
-                    continue
+            # Files captured after audit_at cannot be used for findings or primary verifications.
+            # Only immutable security audit logs (retained under Rule 12) may be extracted from snapshots/logs.
+            is_post_audit = bool(captured_at and audit_at and captured_at > audit_at)
+            if is_post_audit and not (rel_path.endswith(".log") or "snapshot_bundle" in rel_path):
+                continue
 
             fpath = self.dataset_dir / rel_path
             if not fpath.exists():
                 continue
 
             origin = finfo["origin"]
+            file_items: List[EvidenceItem] = []
 
             if rel_path.endswith(".txt"):
-                items.extend(self._parse_handover_txt(fpath, fid, captured_at, origin, emails_lower, uid))
+                file_items.extend(self._parse_handover_txt(fpath, fid, captured_at, origin, emails_lower, uid))
             elif rel_path.endswith(".json"):
-                items.extend(self._parse_json_record(
+                file_items.extend(self._parse_json_record(
                     fpath, fid, captured_at, origin, emails_lower, phones, hashes_lower, uid, audit_at, requested_at, candidate_resources
                 ))
             elif rel_path.endswith(".sql"):
-                items.extend(self._parse_sql_snapshot(fpath, fid, captured_at, origin, emails_lower, phones, uid))
+                file_items.extend(self._parse_sql_snapshot(fpath, fid, captured_at, origin, emails_lower, phones, uid))
             elif rel_path.endswith(".log"):
-                items.extend(self._parse_log_file(
+                file_items.extend(self._parse_log_file(
                     fpath, fid, captured_at, origin, emails_lower, phones, hashes_lower, uid, audit_at, requested_at, candidate_resources
                 ))
             elif rel_path.endswith(".pdf"):
-                items.extend(self._parse_pdf_document(fpath, fid, captured_at, origin, emails_lower, phones, uid))
+                file_items.extend(self._parse_pdf_document(fpath, fid, captured_at, origin, emails_lower, phones, uid))
+
+            if is_post_audit:
+                file_items = [it for it in file_items if it.system_id == "security_service"]
+
+            items.extend(file_items)
 
         # 2. Scan system activity stream up to audit_at
         items.extend(self._parse_system_activity(emails_lower, uid, audit_at, requested_at))

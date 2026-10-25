@@ -1,0 +1,5 @@
+# HackerRank ORCHESTRATE: Ghost Data Still Exists
+# Core dependencies for multimodal parsing and selective LLM reasoning
+groq>=0.11.0
+python-dotenv>=1.0.0
+pypdfium2>=4.30.0

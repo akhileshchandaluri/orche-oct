@@ -1,157 +1,145 @@
-# HackerRank Orchestrate - October 2026
+# HackerRank Orchestrate - October 2026: Ghost Data Still Exists
 
-## Ghost Data Still Exists
-
-Build an AI agent that audits whether a user's personal data was actually deleted.
-
-A deletion workflow may report **Complete** while data still exists in databases, logs, support attachments, exports, search indexes, archives, or backups. Sync and restore processes may also bring deleted data back.
-
-For each request, the agent must first determine whether deletion was actually requested. It then returns `COMPLETE`, `INCOMPLETE`, or `NOT_APPLICABLE`, reports any remaining data or recreation risk, and produces the ordered remediation and verification steps required to finish an authorized deletion safely.
-
-Read [`problem_statement.md`](./problem_statement.md) for the complete challenge contract.
+An autonomous forensic compliance and deletion audit system for **Northstar Shop**. It determines whether user data was permanently eradicated across distributed systems or persists as **ghost data**, producing canonical remediation and verification steps strictly adhering to the competition contract.
 
 ---
 
-## Quick Start
+## 1. System Architecture
 
-Clone the repository and move into the project directory:
+The system uses an adversarial **Hybrid Forensic Pipeline** that pairs a fast, deterministic forensic engine with a token-efficient LLM reviewer agent:
 
+```
+                                  [ Deletion Request ]
+                                           │
+                                           ▼
+                       ┌───────────────────────────────────────┐
+                       │   Deterministic Forensic Engine       │
+                       │   - Intent Classification (Regex/NLP) │
+                       │   - Identity Graph Resolution         │
+                       │   - Evidence Indexing & SQL Forensics │
+                       │   - Deletion Policy Rule Compilation  │
+                       └───────────────────┬───────────────────┘
+                                           │
+                                           ▼
+                                [ Engine Draft Dossier ]
+                                           │
+                                           ▼
+                       ┌───────────────────────────────────────┐
+                       │       Uncertainty Router              │
+                       │   Flags:                              │
+                       │   - Multiple Candidate Accounts       │
+                       │   - Historical Identity Changes       │
+                       │   - Intent Confidence < 0.90          │
+                       │   - Conflicting Evidence Signals      │
+                       │   - Invariant Scan Violations         │
+                       └───────┬───────────────────────┬───────┘
+                               │ (Certain)             │ (Uncertain)
+                               ▼                       ▼
+                     [ Accept Draft ]      ┌───────────────────────┐
+                                           │ ReviewerAgent (LLM)   │
+                                           │ - In-Window Digest    │
+                                           │ - Provenance Ledger   │
+                                           │ - Tool Calling (1 rd) │
+                                           │ - Ledger Verification │
+                                           └───────────┬───────────┘
+                                                       │
+                                                       ▼
+                                           [ Verified Canonical ]
+                                           [ Output Steps CSV   ]
+```
+
+### Components
+1. **Deterministic Forensic Engine (`code/prediction_engine.py`)**:
+   - `IntentInterpreter`: Multilingual intent classifier with negative lookaheads preventing false deletions on portability/access requests.
+   - `EvidenceForensicsEngine`: Reconstructs user timelines across 8 systems (`account_service`, `customer_service`, `search_service`, `analytics_service`, `marketing_service`, `security_service`, `integration_service`, `backup_service`).
+   - `PolicyMapper`: Compiles findings, remediations, and verification checks conforming to `deletion_rules.csv` and canonical sorting tie-breakers.
+2. **ReviewerAgent (`code/agent_loop.py`)**:
+   - Gathers a compact context digest (<= 1500 tokens) containing engine drafts, identity profiles, and in-window evidence snippets.
+   - Makes a single low-reasoning LLM call (JSON output) with at most 1 tool round (3 tools max, capped at 800 chars).
+   - Validates all proposed amendments against the per-case `ProvenanceLedger`; hallucinated identifiers are automatically rejected and discarded.
+3. **InvestigatorAgent (`code/agent_loop.py`)**:
+   - Full 5-phase autonomous investigative agent (`Plan` -> `Investigate` -> `Dossier` -> `Auditor` -> `Step Proposal`) for deep autonomous investigation.
+4. **Agent Tools (`code/agent_tools.py`)**:
+   - 8 specialized tools: `resolve_identity`, `list_evidence_manifest`, `search_evidence`, `read_evidence`, `query_sql_snapshot`, `search_activity`, `get_deletion_rules`, `get_baseline_analysis`.
+
+---
+
+## 2. Security & Guardrails
+
+- **Harness-Enforced Temporal Windows**: The harness strictly overwrites `audit_at` and `requested_at` arguments on all tool executions with the case's ground truth timestamps. The model cannot widen temporal windows or observe forward leakage.
+- **ProvenanceLedger Validation**: Every cited `resource_id`, `system_id`, and `evidence_id` must be recorded in the case's ledger via tool execution or verified engine analysis. Hallucinations are rejected in pure code.
+- **Untrusted User Request Isolation**: User request text is wrapped in `<user_request_text>` tags with system instructions to treat it strictly as inert data, preventing prompt-injection attacks.
+- **Zero Secrets Policy**: API keys are read from the environment and scrubbed before writing any traces, caches, or logs (`[REDACTED_API_KEY]`).
+- **Token Budget Protection**: Enforces an atomic daily budget (default: 140,000 tokens) persisted in `run_state.json`. At budget exhaustion or on a TPD 429 error, execution gracefully stops and falls back to verified engine drafts (`path_used="engine_budget"`).
+
+---
+
+## 3. Quick Start & Execution
+
+### Installation
 ```bash
-git clone https://github.com/interviewstreet/hackerrank-orchestrate-october26.git
-cd hackerrank-orchestrate-october26
+pip install -r requirements.txt
 ```
 
-Start your AI coding tool from the **repository root** so it automatically reads [`AGENTS.md`](./AGENTS.md) and logs your session turns to `log.txt` in the root directory.
-
-Build your solution in `code/main.py`, or use another language and document its setup and run command clearly in your README.
-
-Your solution must:
-
-- Read the input files from `dataset/`
-- Generate one prediction row for every request in `dataset/deletion_requests.csv`
-- Write the final predictions to `output.csv` in the repository root
-
-Run the starter Python entry point with:
-
+### Running the Pipeline (`code/main.py`)
 ```bash
-python3 code/main.py
+# Default mode: Fast, offline, deterministic engine (0 API tokens, 100% contract compliant)
+python code/main.py dataset output.csv
+
+# Hybrid mode: Engine draft + ReviewerAgent for routed uncertain cases
+python code/main.py dataset scratch/prod_hybrid_output.csv --mode hybrid
+
+# Dry-run mode: Analyze routing breakdown and token estimates without calling APIs
+python code/main.py dataset scratch/prod_dry_run.csv --mode hybrid --dry-run
+
+# Filter by specific cases or set limit
+python code/main.py dataset scratch/test_output.csv --mode hybrid --cases case_01,case_04,case_23 --limit 10
 ```
 
-The blank template at `dataset/output.csv` is provided as a reference. Your final generated file for submission must be the root-level `output.csv`.
-
-
-## Dataset
-
-All participant-facing files are in `dataset/`:
-
-| File | Contents |
-| --- | --- |
-| `deletion_requests.csv` | 518 requests |
-| `sample_deletion_requests.csv` | 32 sample requests |
-| `sample_output.csv` | Correct sample answers |
-| `user_identities.csv` | Current user identities |
-| `user_audit_log.csv` | Historical identity changes |
-| `system_activity.csv` | Activity across services and data processes |
-| `deletion_rules.csv` | Required treatment for each data category |
-| `evidence_files.csv` | Manifest of supplied evidence files |
-| `output.csv` | Blank output template |
-
-Evidence is stored under `dataset/evidence/` and may include PDFs, images, logs, JSON, plain text, or SQL snapshot exports. SQL captures may contain a primary database, regional replicas, a reporting replica, or a failover replica so replication drift can be investigated directly. The `.sql` files are readable as text and executable with SQLite.
-
-Only `deletion_requests.csv` requires answers. The other files provide evidence and context.
-
 ---
 
-## Output
+## 4. Verification & Quality Gates
 
-Create `output.csv` with these columns in this exact order:
-
-```text
-case_id,deletion_status,steps_json
-```
-
-Produce exactly one row per request. `deletion_status` is `COMPLETE`, `INCOMPLETE`, or `NOT_APPLICABLE`. `steps_json` is an ordered JSON array containing findings, remediation actions, and verification checks. Use an empty array (`[]`) for `NOT_APPLICABLE`. Evidence references may be a `file_id`, `activity_id`, or `audit_id`. Determine the resource state at `audit_at` from the available evidence; reported workflow statuses and operation results are claims. Use `dataset/sample_output.csv` as the format reference.
-
-The final file must contain 518 data rows sorted by `case_id` (plus the header row). The grader parses `steps_json` as JSON, so object-key order and whitespace do not matter; array order does. Order findings, remediation, and verification in that phase order. Within a phase, follow the operation order in the problem statement, then sort by `system_id` and `resource_id`.
-
----
-
-## Evaluation
-
-`output.csv` will be compared with hidden canonical answers. Scoring considers:
-
-- deletion assessment accuracy;
-- current and historical identity resolution;
-- discovery of remaining data and recreation risks;
-- correct policy application and evidence references; and
-- completeness and ordering of remediation and verification steps.
-
-Your `code.zip` must include:
-
-```text
-code/evaluation/evaluation_report.md
-code/evaluation/usage_report.md
-```
-
-- `evaluation_report.md` must cover case, row, field, and sequence accuracy, at least three additional evaluation cases created by you, failures found, and improvements made.
-- `usage_report.md` must cover the final full-dataset run, including model providers and names, model calls, input and output tokens, total and average tokens per request, and estimated total and per-request cost. Include per-model and overall totals when using multiple models.
-
-**Important:** Place `evaluation_report.md` and `usage_report.md` inside `code/evaluation/` (matching `code/evaluation/main.py` in this starter layout), write your complete evaluation metrics, custom evaluation test cases, and token/cost breakdowns directly inside those Markdown files, and keep prompts in source code or Markdown files. Automated code evaluation ignores raw data files (`.csv`, `.tsv`, `.json`, `.jsonl`, `.sql`, `.log`), so content stored only in those formats will not be visible to the code judge or AI interviewer.
-
----
-
-## Chat Transcript
-
-This repository includes [`AGENTS.md`](./AGENTS.md), which instructs compatible AI coding tools to append conversation summaries to `log.txt` in the repository root:
-
-| Platform | Path |
-| --- | --- |
-| macOS / Linux | `<repo root>/log.txt` |
-| Windows | `<repo root>\log.txt` |
-
-- Always launch your AI coding agent from the repository root (or explicitly ask it to read `./AGENTS.md` first) so every turn is logged to `log.txt` with the required `User Prompt`, `Agent Response Summary`, `Actions`, and `Context` sections.
-- Upload `log.txt` directly as your `chat_transcript` submission on HackerRank.
-- Do not include API keys, tokens, credentials, or secrets in prompts, code, configuration, or `log.txt`.
-
----
-
-## Packaging `code.zip` and Submission
-
-| Item | Description |
-| --- | --- |
-| `code.zip` | Runnable solution, prompts, configuration, `README.md`, and `evaluation/` reports |
-| `output.csv` | One answer row for each of the 518 requests in `dataset/deletion_requests.csv` |
-| `chat_transcript` | The root `log.txt` file generated by your coding agent |
-| AI interview | Live explanation of your architecture, approach, and evaluation |
-
-You may use any programming language, model, framework, or retrieval approach. Include clear setup and execution instructions in `README.md` inside `code.zip`.
-
-To package `code.zip` from the repository root without bundling the dataset:
-
-**macOS / Linux:**
-
+Run all automated verification gates:
 ```bash
-zip -r code.zip README.md code -x "*/__pycache__/*" "*/.venv/*" "*/venv/*" "*/node_modules/*" "*/.git/*" "*/.DS_Store"
+# 1. Run all 73 unit tests (including all security, temporal, and mock agent tests)
+python -m unittest discover -s code/evaluation -p "test_*.py"
+
+# 2. Run the regression gate (validates sample benchmark >= 29/32 and 100% status accuracy)
+python scratch/regression_gate.py
+
+# 3. Run strict contract schema validation (checks all 518 production rows)
+python code/evaluation/schema_validator.py output.csv
+
+# 4. Run invariant scan (checks temporal boundaries, ordering, and evidence validity)
+python scratch/invariant_scan.py output.csv
 ```
 
-**Windows (PowerShell):**
+---
 
-```powershell
-Compress-Archive -Path README.md, code -DestinationPath code.zip -Force
-```
+## 5. Measured Benchmark Results
 
-When packaging `code.zip`:
+| Metric | Measured Result | Benchmark Scope |
+|---|---|---|
+| **Exact-Row Matches** | **29 / 32 (90.62%)** | 32 Public Cases (`sample_output.csv`) |
+| **Case-Status Accuracy** | **32 / 32 (100.00%)** | 32 Public Cases (`sample_output.csv`) |
+| **Step Precision** | **99.48%** | 32 Public Cases (`sample_output.csv`) |
+| **Step Recall** | **98.45%** | 32 Public Cases (`sample_output.csv`) |
+| **Step F1-Score** | **98.96%** | 32 Public Cases (`sample_output.csv`) |
+| **Sequence Accuracy** | **100.00%** | Step multiset matched cases |
+| **Production Row Count** | **518 / 518 cases** | Full Production Output |
+| **Schema Validation Errors** | **0 errors (100% Pass)** | Full Production Output |
+| **Invariant Violations** | **0 violations (100% Pass)** | Reduced from 155 in legacy baseline |
+| **Unit Test Suite** | **73 / 73 passing** | `code/evaluation/test_*.py` |
 
-- Keep your evaluation reports in `code/evaluation/` so they are bundled automatically with `code` (or add `evaluation` to the archive command above if you placed them in a top-level `evaluation/` directory).
-- Do **not** include `dataset/`, virtual environments (`.venv`, `venv`, `node_modules`), or build caches (`__pycache__`). On Windows, keep `.venv` at the repository root (outside `code/`) and remove any `code/__pycache__` folders before running `Compress-Archive`.
-- Do **not** include nested archives (`.zip`, `.tar`, `.gz`, `.tgz`, `.7z`, `.rar`) inside `code.zip` — submissions containing nested archive files will be rejected.
+---
 
-Before submitting, confirm that:
+## 6. Honest Limitations & Edge Cases
 
-- `output.csv` has the exact header `case_id,deletion_status,steps_json` and contains all 518 data rows sorted by `case_id`;
-- every `steps_json` value is a valid JSON array with consecutive step numbers starting at `1`;
-- findings cite valid evidence IDs, and `COMPLETE` verification steps cite evidence proving the current state;
-- proposed remediation and future verification steps use an empty `evidence_id` (`""`);
-- `code.zip` includes your runnable code, `README.md`, `code/evaluation/evaluation_report.md`, and `code/evaluation/usage_report.md`;
-- `log.txt` follows the `AGENTS.md` turn format and is uploaded to the `chat_transcript` slot; and
-- no API keys, credentials, real personal data, or sensitive configuration values are included.
+1. **Unresolvable Ground Truth in Public Samples**:
+   - `case_18` and `case_20`: Reference citations cite `audit_record_6645` and `audit_record_5569`, which do not exist anywhere in participant evidence files.
+   - `case_23`: Batch execution window contains 3 simultaneous deletion failure events (`account_7015`, `account_410`, `account_9155`) for the user.
+2. **Rate Limit Throttling on Free Tiers**:
+   - Free/developer Groq tiers enforce a strict 200k Tokens Per Day (TPD) limit. The hybrid pipeline handles this gracefully via budget tracking and deterministic fallbacks.
+3. **SQLite Query Constraints**:
+   - SQLite queries in `query_sql_snapshot` are bounded and read-only to prevent denial-of-service on large SQL dumps.

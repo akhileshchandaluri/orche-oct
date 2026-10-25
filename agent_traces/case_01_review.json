@@ -1,0 +1,31 @@
+{
+  "case_id": "case_01",
+  "verdict": "amend",
+  "amendments": [
+    {
+      "action": "add",
+      "system_id": "support_platform",
+      "resource_id": "hallucinated_support_ghost_99999",
+      "data_category": "SUPPORT_MESSAGE",
+      "state": "PRESENT",
+      "evidence_id": "evidence_54",
+      "reason": "fake"
+    }
+  ],
+  "metrics": {
+    "model_review": "llama-3.1-8b-instant",
+    "tokens": 200,
+    "tool_calls": 0,
+    "latency": 0.0,
+    "model_escalate": "openai/gpt-oss-120b",
+    "escalate_tokens": 200,
+    "tokens_used": 400
+  },
+  "ledger_resources": [
+    "account_001",
+    "user_01"
+  ],
+  "ledger_files": [
+    "evidence_54"
+  ]
+}

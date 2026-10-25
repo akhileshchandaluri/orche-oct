@@ -11,6 +11,7 @@ allowlist_items = [
     ("README.md", "README.md"),
     ("AGENTS.md", "AGENTS.md"),
     ("problem_statement.md", "problem_statement.md"),
+    ("requirements.txt", "requirements.txt"),
     ("code/__init__.py", "code/__init__.py"),
     ("code/main.py", "code/main.py"),
     ("code/prediction_engine.py", "code/prediction_engine.py"),
@@ -78,15 +79,15 @@ res_tests = subprocess.run(
 assert res_tests.returncode == 0, f"Tests failed in sandbox: {res_tests.stderr}"
 print("Sandbox unit test execution: PASS (46/46 tests)")
 
-# Run production entry point in sandbox (deterministic mode)
+# Run production entry point in sandbox (deterministic mode with positional arguments)
 res_main = subprocess.run(
-    [sys.executable, "code/main.py", "--disable-groq"],
+    [sys.executable, "code/main.py", "dataset", "output.csv", "--disable-groq"],
     cwd=sandbox_dir,
     capture_output=True,
     text=True,
 )
 assert res_main.returncode == 0, f"Production pipeline failed in sandbox: {res_main.stderr}"
-print("Sandbox production pipeline execution: PASS (518 rows generated and validated)")
+print("Sandbox production pipeline execution (positional args): PASS (518 rows generated and validated)")
 
 # Validate generated output in sandbox
 sandbox_out = sandbox_dir / "output.csv"

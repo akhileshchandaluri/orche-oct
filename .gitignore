@@ -4,3 +4,12 @@
 __pycache__/
 *.pyc
 *.pyo
+agent_cache/
+agent_traces/*
+!agent_traces/case_01_review.json
+!agent_traces/case_10_review.json
+!agent_traces/case_14_review.json
+run_state.json
+scratch/
+backup/
+

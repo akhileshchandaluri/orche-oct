@@ -1,0 +1,114 @@
+================================================================================
+LIVE SMOKE TEST: InvestigatorAgent (3 Target Cases)
+================================================================================
+Model configured: openai/gpt-oss-120b
+Traces directory: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\agent_traces
+No-cache mode:    True
+
+================================================================================
+TESTING CASE: case_01
+Expected Status (from sample_output.csv): COMPLETE
+User Email:        amina.elmasri@gmail.com
+Reported Status:   COMPLETE
+Request Text:      Hi, I haven�t used this account in years and would like it closed. Please remove the profile and the personal details at...
+--------------------------------------------------------------------------------
+Agent Status Result:   COMPLETE
+Status Match:          PASS (got COMPLETE, expected COMPLETE)
+Path Used:             agent
+Error (if any):        None
+Latency:               431.24s
+Token Metrics:
+  - Model Calls:       14
+  - Prompt Tokens:     54636
+  - Completion Tokens: 4669
+  - Total Tokens:      59305
+  - Tool Calls Count:  11
+  - Auditor Objections:5
+  - Validation Rejects:0
+
+Tool Calls Used (0): []
+Systems Checked (0): []
+
+Step-Level Diff against dataset/sample_output.csv:
+  Agent Steps Count:    0
+  Reference Step Count: 1
+  [STEP DIFF] Differences identified:
+    Step 1: DIFF
+      Agent:     None
+      Reference: {'evidence_id': 'evidence_54', 'operation': 'VERIFY_RECORD_ABSENT', 'phase': 'VERIFICATION', 'resource_id': 'account_001', 'state': 'ABSENT', 'step_no': 1, 'system_id': 'account_service'}
+
+================================================================================
+TESTING CASE: case_04
+Expected Status (from sample_output.csv): COMPLETE
+User Email:        thandiwe.n@gmail.com
+Reported Status:   COMPLETE
+Request Text:      I�m deleting my account. You can keep anonymous statistics, but nothing in analytics should still point back to me....
+--------------------------------------------------------------------------------
+Agent Status Result:   INCOMPLETE
+Status Match:          DIFF (got INCOMPLETE, expected COMPLETE)
+Path Used:             fallback
+Error (if any):        Error code: 400 - {'error': {'message': 'Tool choice is none, but model called a tool', 'type': 'invalid_request_error', 'code': 'tool_use_failed', 'failed_generation': '{"name": "read_evidence", "arguments": {"audit_at":"2026-09-07T10:20:00Z","file_id":"evidence_08","locator":"line:1-200"}}'}}
+Latency:               219.47s
+Token Metrics:
+  - Model Calls:       0
+  - Prompt Tokens:     0
+  - Completion Tokens: 0
+  - Total Tokens:      0
+  - Tool Calls Count:  0
+  - Auditor Objections:0
+  - Validation Rejects:0
+
+Tool Calls Used (0): []
+Systems Checked (0): []
+
+Step-Level Diff against dataset/sample_output.csv:
+  Agent Steps Count:    0
+  Reference Step Count: 2
+  [STEP DIFF] Differences identified:
+    Step 1: DIFF
+      Agent:     None
+      Reference: {'evidence_id': 'evidence_54', 'operation': 'VERIFY_RECORD_ABSENT', 'phase': 'VERIFICATION', 'resource_id': 'account_004', 'state': 'ABSENT', 'step_no': 1, 'system_id': 'account_service'}
+    Step 2: DIFF
+      Agent:     None
+      Reference: {'evidence_id': 'evidence_56', 'operation': 'VERIFY_RECORD_ANONYMIZED', 'phase': 'VERIFICATION', 'resource_id': 'analytics_901', 'state': 'ANONYMIZED', 'step_no': 2, 'system_id': 'analytics_platform'}
+
+================================================================================
+TESTING CASE: case_02
+Expected Status (from sample_output.csv): COMPLETE
+User Email:        mateo.rios@outlook.com
+Reported Status:   PARTIALLY_COMPLETE
+Request Text:      Intent� eliminar mi cuenta ayer, pero la p�gina termin� mostrando un error. �Pueden comprobar si todav�a queda alg�n dat...
+--------------------------------------------------------------------------------
+Agent Status Result:   COMPLETE
+Status Match:          PASS (got COMPLETE, expected COMPLETE)
+Path Used:             agent
+Error (if any):        None
+Latency:               136.05s
+Token Metrics:
+  - Model Calls:       4
+  - Prompt Tokens:     6330
+  - Completion Tokens: 3284
+  - Total Tokens:      9614
+  - Tool Calls Count:  1
+  - Auditor Objections:7
+  - Validation Rejects:0
+
+Tool Calls Used (0): []
+Systems Checked (0): []
+
+Step-Level Diff against dataset/sample_output.csv:
+  Agent Steps Count:    0
+  Reference Step Count: 1
+  [STEP DIFF] Differences identified:
+    Step 1: DIFF
+      Agent:     None
+      Reference: {'evidence_id': 'evidence_54', 'operation': 'VERIFY_RECORD_ABSENT', 'phase': 'VERIFICATION', 'resource_id': 'account_002', 'state': 'ABSENT', 'step_no': 1, 'system_id': 'account_service'}
+
+================================================================================
+SMOKE TEST SUMMARY TABLE
+================================================================================
+case_id     status expected_status  status_match  tools_count  systems_checked  tokens  latency_s  objections  rejections  exact_steps
+case_01   COMPLETE        COMPLETE          True            0                0   59305     431.24           0           0        False
+case_04 INCOMPLETE        COMPLETE         False            0                0       0     219.47           0           0        False
+case_02   COMPLETE        COMPLETE          True            0                0    9614     136.05           0           0        False
+================================================================================

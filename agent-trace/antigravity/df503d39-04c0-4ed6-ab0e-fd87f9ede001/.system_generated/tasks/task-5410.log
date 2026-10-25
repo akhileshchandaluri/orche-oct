@@ -1,0 +1,110 @@
+================================================================================
+STATUS DISTRIBUTION & PROGRAMMATIC CASE SELECTION
+================================================================================
+dataset/sample_output.csv status distribution:
+  - INCOMPLETE: 22 cases
+  - COMPLETE: 10 cases
+  Total public sample cases: 32
+
+Programmatically Selected Cases (1 per status):
+  - COMPLETE:       case_01 (from sample_output.csv)
+  - INCOMPLETE:     case_05 (from sample_output.csv)
+  - NOT_APPLICABLE: case_533 (from output.csv)
+================================================================================
+Model configured: openai/gpt-oss-120b
+Traces directory: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\agent_traces
+Max Turns:        5
+No-Cache:         True
+
+================================================================================
+CASE: case_01
+Expected Status (from CSV): COMPLETE
+User Email:        amina.elmasri@gmail.com
+Reported Status:   COMPLETE
+Request Text:      Hi, I haven�t used this account in years and would like it closed. Please remove the profile and the...
+--------------------------------------------------------------------------------
+Agent Status Result:   COMPLETE
+Status Match:          PASS (got COMPLETE, expected COMPLETE)
+Path Used:             agent
+Error (if any):        None
+Latency:               208.73s (Target: < 60s)
+Model Calls:           9
+Total Tokens:          24760 (prompt: 21627, completion: 3133)
+Tool Calls Count:      5
+Auditor Objections:    5
+Validation Rejections: 0
+
+Tool Calls Used (18): ['resolve_identity', 'list_evidence_manifest', 'search_evidence', 'resolve_identity', 'list_evidence_manifest', 'read_evidence', 'search_evidence', 'search_evidence', 'search_evidence', 'read_evidence', 'search_evidence', 'query_sql_snapshot', 'search_evidence', 'get_baseline_analysis', 'search_evidence', 'search_evidence', 'search_evidence', 'search_evidence']
+Auditor Execution:     triggered (complete_claim)
+Draft vs Final Diff:   status_disagreement=False, draft_steps=1, final_steps=1
+
+Step-Level Diff against Reference (Agent: 1, Ref: 1):
+  [STEP DIFF] EXACT MATCH with reference
+
+================================================================================
+CASE: case_05
+Expected Status (from CSV): INCOMPLETE
+User Email:        leila.haddad@yahoo.com
+Reported Status:   COMPLETE
+Request Text:      I deleted this account and received a confirmation, but the same email address is still recognized. ...
+--------------------------------------------------------------------------------
+Agent Status Result:   None
+Status Match:          DIFF (got None, expected INCOMPLETE)
+Path Used:             error
+Error (if any):        Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kfdpwnjffmt9xrw7gzypdebw` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199914, Requested 5076. Please try again in 35m55.679999999s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+Latency:               169.10s (Target: < 60s)
+Model Calls:           7
+Total Tokens:          20870 (prompt: 19170, completion: 1700)
+Tool Calls Count:      5
+Auditor Objections:    0
+Validation Rejections: 0
+
+Tool Calls Used (6): ['resolve_identity', 'get_baseline_analysis', 'search_evidence', 'query_sql_snapshot', 'search_evidence', 'search_evidence']
+Auditor Execution:     skipped
+Draft vs Final Diff:   status_disagreement=None, draft_steps=None, final_steps=None
+
+Step-Level Diff against Reference (Agent: 0, Ref: 3):
+  [STEP DIFF] Differences:
+    Step 1: DIFF
+      Agent:     None
+      Reference: {'evidence_id': 'evidence_54', 'operation': 'REPORT_REMAINING_RECORD', 'phase': 'FINDING', 'resource_id': 'account_005', 'state': 'PRESENT', 'step_no': 1, 'system_id': 'account_service'}
+    Step 2: DIFF
+      Agent:     None
+      Reference: {'evidence_id': '', 'operation': 'DELETE_RECORD', 'phase': 'REMEDIATION', 'resource_id': 'account_005', 'state': 'ABSENT', 'step_no': 2, 'system_id': 'account_service'}
+    Step 3: DIFF
+      Agent:     None
+      Reference: {'evidence_id': '', 'operation': 'VERIFY_RECORD_ABSENT', 'phase': 'VERIFICATION', 'resource_id': 'account_005', 'state': 'ABSENT', 'step_no': 3, 'system_id': 'account_service'}
+
+================================================================================
+CASE: case_533
+Expected Status (from CSV): NOT_APPLICABLE
+User Email:        haruka-kato@gmail.com
+Reported Status:   NOT_STARTED
+Request Text:      The mobile number on my profile is out of date. Please replace it with the new one and leave the acc...
+--------------------------------------------------------------------------------
+Agent Status Result:   None
+Status Match:          DIFF (got None, expected NOT_APPLICABLE)
+Path Used:             error
+Error (if any):        Error code: 429 - {'error': {'message': 'Rate limit reached for model `openai/gpt-oss-120b` in organization `org_01kfdpwnjffmt9xrw7gzypdebw` service tier `on_demand` on tokens per day (TPD): Limit 200000, Used 199895, Requested 2406. Please try again in 16m34.031999999s. Need more tokens? Upgrade to Dev Tier today at https://console.groq.com/settings/billing', 'type': 'tokens', 'code': 'rate_limit_exceeded'}}
+Latency:               8.10s (Target: < 60s)
+Model Calls:           0
+Total Tokens:          0 (prompt: 0, completion: 0)
+Tool Calls Count:      0
+Auditor Objections:    0
+Validation Rejections: 0
+
+Tool Calls Used (0): []
+Auditor Execution:     skipped
+Draft vs Final Diff:   status_disagreement=None, draft_steps=None, final_steps=None
+
+Step-Level Diff against Reference (Agent: 0, Ref: 0):
+  [STEP DIFF] EXACT MATCH with reference
+
+================================================================================
+LIVE SMOKE TEST FINAL SUMMARY
+================================================================================
+ case_id   status expected_status  status_match  latency_s  under_60s  tokens  tools_count                    auditor                     draft_diff  exact_steps
+ case_01 COMPLETE        COMPLETE          True     208.73      False   24760           18 triggered (complete_claim) draft:COMPLETE->final:COMPLETE         True
+ case_05     None      INCOMPLETE         False     169.10      False   20870            6                    skipped         draft:None->final:None        False
+case_533     None  NOT_APPLICABLE         False       8.10       True       0            0                    skipped         draft:None->final:None         True
+================================================================================

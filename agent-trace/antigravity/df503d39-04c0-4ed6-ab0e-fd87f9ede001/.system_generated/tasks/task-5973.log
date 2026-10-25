@@ -1,0 +1,53 @@
+================================================================================
+ORCHESTRATE: GHOST DATA STILL EXISTS - COMPLIANCE AUDIT PIPELINE
+================================================================================
+Timestamp:       2026-10-25T06:58:41.348612+00:00
+Dataset root:    D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\dataset
+Output target:   D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\test_output.csv
+Execution Mode:  ENGINE
+Dry Run:         False
+Concurrency:     1
+Daily Budget:    140,000 tokens
+Loaded 518 cases to evaluate.
+Processed  50 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 100 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 150 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 200 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 250 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 300 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 350 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 400 / 518 cases (Status: INCOMPLETE, Path: engine)
+Processed 450 / 518 cases (Status: COMPLETE, Path: engine)
+Processed 500 / 518 cases (Status: COMPLETE, Path: engine)
+Processed 518 / 518 cases (Status: INCOMPLETE, Path: engine)
+
+================================================================================
+ROUTING AND UNCERTAINTY ANALYSIS REPORT
+================================================================================
+Total Cases Analyzed:   518
+Total Cases Routed:     209 (40.3%)
+
+Routed Breakdown by Uncertainty Reason:
+  - multiple_candidate_accounts     :    0
+  - historical_identity_match       :  100
+  - intent_confidence_low           :    0
+  - conflicting_evidence            :  140
+  - invariant_violation             :    0
+
+Estimated Tokens Required: 836,000 tokens (routed x 4,000)
+Current Daily Token Budget: 140,000 (Remaining Today: 140,000)
+
+Executing strict schema validation before committing output...
+Validation Report for: D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\test_output_temp.csv
+Result: PASS (Contract Compliant)
+Total rows: 518
+Status distribution: {'COMPLETE': 211, 'INCOMPLETE': 297, 'NOT_APPLICABLE': 10}
+Error count: 0
+Warning count: 0
+
+Wrote 518 verified rows to D:\btech\projects\orchestrate\orchestrate oct\hackerrank-orchestrate-october26\scratch\test_output.csv in 709.08 seconds.
+
+Final Status Distribution:
+  COMPLETE       :  211 ( 40.7%)
+  INCOMPLETE     :  297 ( 57.3%)
+  NOT_APPLICABLE :   10 (  1.9%)
